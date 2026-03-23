@@ -22,16 +22,11 @@ interface CoursePlayerProps {
   course: Course;
   onBack: () => void;
   materials: Material[];
-  lessons?: LessonDB[];
 }
 
-const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials, lessons = [] }) => {
+const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'aulas' | 'materiais'>('aulas');
-
-  const courseLessons = useMemo(() => {
-    return lessons.filter(l => l.courseId == course.id);
-  }, [lessons, course.id]);
 
   const firstLesson = useMemo(() => {
     if (course.modules && course.modules.length > 0) {
@@ -41,11 +36,8 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials, 
         }
       }
     }
-    if (courseLessons.length > 0) {
-      return courseLessons[0];
-    }
     return null;
-  }, [course, courseLessons]);
+  }, [course]);
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(firstLesson);
   const [videoType, setVideoType] = useState<'arranjo' | 'aovivo'>('arranjo');
@@ -159,35 +151,6 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials, 
                 </div>
               </div>
             ))}
-
-            {courseLessons.length > 0 && (
-              <div className="mb-6">
-                <div className="px-4 py-2 text-[8px] font-black uppercase text-red-600 tracking-[0.2em] mb-2 border-b border-red-100 bg-red-50/50">
-                  Aulas Extras (Banco)
-                </div>
-                <div className="space-y-1">
-                  {courseLessons.map((lesson, lIdx) => (
-                    <button
-                      key={lesson.id || lIdx}
-                      onClick={() => { setSelectedLesson(lesson); setIsSidebarOpen(false); }}
-                      className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all flex items-center space-x-4 ${
-                        selectedLesson?.id === lesson.id 
-                          ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' 
-                          : 'hover:bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border shrink-0 ${
-                        selectedLesson?.id === lesson.id ? 'border-white/30 bg-white/10' : 'border-slate-300 bg-white text-slate-400'
-                      }`}>
-                        {lIdx + 1}
-                      </div>
-                      <span className="text-[10px] font-black uppercase flex-1 leading-tight">{lesson.title}</span>
-                      {selectedLesson?.id === lesson.id && <Play className="w-3 h-3" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <div className="p-4 space-y-3">
@@ -223,14 +186,19 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials, 
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden relative">
-      <header className="bg-slate-950 text-white h-16 flex items-center px-4 md:px-8 shrink-0 z-50 border-b border-white/5">
+      <header className="bg-slate-950 text-white h-16 flex items-center px-4 md:px-8 shrink-0 z-50 border-b border-white/5 sticky top-0">
         <div className="flex-1 flex items-center gap-3">
-           <div className="bg-red-600 p-1.5 rounded-lg">
+           <Button variant="neo" size="sm" className="lg:hidden bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={() => setIsSidebarOpen(true)}>
+             <Layout className="w-4 h-4" />
+           </Button>
+           <div className="bg-red-600 p-1.5 rounded-lg hidden sm:block">
              <Music className="w-5 h-5" />
            </div>
-           <h1 className="text-xl md:text-2xl font-black uppercase tracking-tighter">AULA ONLINE</h1>
+           <h1 className="text-lg md:text-2xl font-black uppercase tracking-tighter truncate max-w-[150px] sm:max-w-none">
+             {selectedLesson.title}
+           </h1>
         </div>
-        <Button variant="primary" size="sm" onClick={onBack} className="shadow-lg shadow-red-600/30">
+        <Button variant="primary" size="sm" onClick={onBack} className="shadow-lg shadow-red-600/30 text-[10px] px-4">
           VOLTAR AO PAINEL
         </Button>
       </header>
@@ -267,15 +235,6 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials, 
 
         {/* Área Principal */}
         <main className="flex-1 bg-white overflow-y-auto custom-scrollbar">
-          {/* Mobile Tab de Aulas */}
-          <div className="lg:hidden sticky top-0 z-40 bg-white/95 backdrop-blur-md px-4 py-3 flex justify-between items-center border-b border-slate-100">
-             <Button variant="neo" size="sm" onClick={() => setIsSidebarOpen(true)}>
-               <Layout className="w-4 h-4 mr-2" />
-               VER AULAS
-             </Button>
-             <span className="text-[10px] font-black uppercase text-slate-400 truncate ml-4 max-w-[150px]">{selectedLesson.title}</span>
-          </div>
-
           <div className="max-w-6xl mx-auto p-4 md:p-10 space-y-8 md:space-y-12 pb-20">
             {/* Player Container */}
             <motion.div 

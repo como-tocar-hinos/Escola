@@ -32,14 +32,13 @@ interface StudentDashboardProps {
   schedules: ScheduledClass[];
   materials: Material[];
   payments: Payment[];
-  lessons: LessonDB[];
   onUpdateProfile: (user: User) => Promise<void>;
 }
 
 type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
-  user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], lessons = [], onUpdateProfile
+  user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], onUpdateProfile
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [viewingCourse, setViewingCourse] = useState<Course | null>(null);
@@ -101,7 +100,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
   if (viewingCourse) {
     return (
-      <CoursePlayer course={viewingCourse} onBack={() => setViewingCourse(null)} materials={materials} lessons={lessons} />
+      <CoursePlayer course={viewingCourse} onBack={() => setViewingCourse(null)} materials={materials} />
     );
   }
 

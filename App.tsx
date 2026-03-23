@@ -16,10 +16,8 @@ const App: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduledClass[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [lessons, setLessons] = useState<LessonDB[]>([]);
 
   const fetchData = useCallback(async () => {
-    console.log("Iniciando busca de dados...");
     try {
       // 1. Buscar Perfis
       const { data: profiles, error: pError } = await supabase.from('profiles').select('*');
@@ -64,19 +62,6 @@ const App: React.FC = () => {
       const { data: dbMaterials, error: mError } = await supabase.from('materials').select('*');
       if (mError) throw mError;
       if (dbMaterials) setMaterials(dbMaterials);
-
-      // 6. Buscar Banco de Aulas
-      const { data: dbLessons, error: lError } = await supabase.from('lessons').select('*');
-      if (lError) {
-        console.warn("Tabela 'lessons' não encontrada ou erro ao buscar. Ignorando...");
-      } else if (dbLessons) {
-        setLessons(dbLessons.map((l: any) => ({
-          ...l,
-          courseId: l.course_id,
-          videoArranjoUrl: l.video_arranjo_url,
-          videoAoVivoUrl: l.video_ao_vivo_url
-        })));
-      }
 
       console.log("Dados carregados com sucesso!");
     } catch (err: any) {
@@ -512,7 +497,6 @@ const App: React.FC = () => {
           students={students}
           courses={courses} schedules={schedules}
           materials={materials} payments={payments}
-          lessons={lessons}
           onUpdateProfile={async (u) => { await supabase.from('profiles').update({ name: u.name, whatsapp: u.whatsapp, avatar: u.avatar }).eq('id', u.id); setUser(u); await fetchData(); }}
         />
       )}
