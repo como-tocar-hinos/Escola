@@ -15,7 +15,6 @@ import {
   Trash2, 
   Save, 
   X, 
-  Music, 
   CheckCircle2, 
   ArrowLeft,
   Layout,
@@ -495,21 +494,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   <span className="text-xs font-black uppercase">{sc.time}</span>
                                 </div>
                               </div>
-                              <div className="mt-6 flex gap-2">
-                                <Button 
-                                  size="sm" 
-                                  className="flex-1 text-[9px]"
-                                  onClick={() => onUpdateSchedule(sc.id, 'COMPLETED')}
-                                >
-                                  Finalizar
-                                </Button>
+                              <div className="mt-6 flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    className="flex-1 text-[9px] bg-green-600 hover:bg-green-700"
+                                    onClick={() => onUpdateSchedule(sc.id, 'COMPLETED')}
+                                  >
+                                    Finalizar
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="flex-1 text-[9px] border-red-600 text-red-600 hover:bg-red-50"
+                                    onClick={() => onUpdateSchedule(sc.id, 'ABSENT')}
+                                  >
+                                    Falta
+                                  </Button>
+                                </div>
                                 <Button 
                                   size="sm" 
                                   variant="ghost"
-                                  className="text-red-400 hover:text-red-600"
+                                  className="w-full text-slate-400 hover:text-red-600 text-[8px] uppercase font-black"
                                   onClick={() => { if(confirm('Excluir agendamento?')) onDeleteSchedule(sc.id); }}
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="w-3 h-3 mr-1" />
+                                  Excluir
                                 </Button>
                               </div>
                             </Card>
@@ -553,14 +563,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {schedules
-                          .filter(s => s.status === 'COMPLETED')
+                          .filter(s => s.status === 'COMPLETED' || s.status === 'ABSENT')
                           .filter(s => {
                             const student = students.find(st => st.id === s.studentId);
                             return (student?.name || '').toLowerCase().includes(scheduleSearchTerm.toLowerCase());
                           })
                           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                           .map(sc => (
-                            <tr key={sc.id} className="hover:bg-slate-50 transition-colors group">
+                            <tr key={sc.id} className={`hover:bg-slate-50 transition-colors group ${sc.status === 'ABSENT' ? 'opacity-70' : ''}`}>
                               <td className="p-6 md:p-8">
                                 <div className="flex items-center gap-4">
                                   <img src={students.find(s => s.id === sc.studentId)?.avatar || DEFAULT_AVATARS.male} className="w-10 h-10 rounded-full border-2 border-slate-100 object-cover" alt="S" />
@@ -577,7 +587,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sc.time}</span>
                               </td>
                               <td className="p-6 md:p-8">
-                                <Badge variant="success">Concluído</Badge>
+                                <Badge variant={sc.title?.includes('[FALTA]') ? 'error' : 'success'}>
+                                  {sc.title?.includes('[FALTA]') ? 'Falta' : 'Concluído'}
+                                </Badge>
                               </td>
                               <td className="p-6 md:p-8 text-center">
                                 <Button 
@@ -591,7 +603,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </td>
                             </tr>
                           ))}
-                        {schedules.filter(s => s.status === 'COMPLETED').length === 0 && (
+                        {schedules.filter(s => s.status === 'COMPLETED' || s.status === 'ABSENT').length === 0 && (
                           <tr>
                             <td colSpan={5} className="p-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
                               Nenhuma aula concluída encontrada.
@@ -846,6 +858,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </select>
                   </div>
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Aulas Concluídas (Ciclo)</label>
+                  <Input 
+                    type="number"
+                    value={editingStudent.totalCompletedClasses} 
+                    onChange={e => setEditingStudent({...editingStudent, totalCompletedClasses: Number(e.target.value)})} 
+                  />
+                  <p className="text-[8px] font-bold text-slate-400 ml-4 uppercase">Cada 4 aulas fecham um ciclo.</p>
+                </div>
                 <div className="flex gap-4">
                   <Button type="submit" className="flex-1 py-6">Salvar Alterações</Button>
                   <Button 
@@ -1050,6 +1071,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </Card>
           </div>
         )}
+
       </main>
     </div>
   );

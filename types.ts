@@ -37,6 +37,12 @@ export interface Lesson {
   description: string;
 }
 
+export interface LessonDB extends Lesson {
+  courseId?: string;
+  instrument: Instrument;
+  level: Level;
+}
+
 export interface Module {
   id: string;
   title: string;
@@ -59,7 +65,7 @@ export interface ScheduledClass {
   teacherId: string;
   date: string;
   time: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'ABSENT';
   instrument: Instrument;
   title?: string; // Campo opcional para nomear a aula na agenda
 }

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, UserRole, Course, ScheduledClass, Payment, Material, Instrument, Level } from './types';
+import { User, UserRole, Course, ScheduledClass, Payment, Material, Instrument, Level, LessonDB } from './types';
 import { MOCK_ADMIN, MOCK_STUDENTS, MOCK_COURSES, MOCK_SCHEDULES, MOCK_PAYMENTS, MOCK_MATERIALS, DEFAULT_AVATARS } from './constants';
 import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduledClass[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [lessons, setLessons] = useState<LessonDB[]>([]);
 
   const fetchData = useCallback(async () => {
     console.log("Iniciando busca de dados...");
@@ -63,6 +64,19 @@ const App: React.FC = () => {
       const { data: dbMaterials, error: mError } = await supabase.from('materials').select('*');
       if (mError) throw mError;
       if (dbMaterials) setMaterials(dbMaterials);
+
+      // 6. Buscar Banco de Aulas
+      const { data: dbLessons, error: lError } = await supabase.from('lessons').select('*');
+      if (lError) {
+        console.warn("Tabela 'lessons' não encontrada ou erro ao buscar. Ignorando...");
+      } else if (dbLessons) {
+        setLessons(dbLessons.map((l: any) => ({
+          ...l,
+          courseId: l.course_id,
+          videoArranjoUrl: l.video_arranjo_url,
+          videoAoVivoUrl: l.video_ao_vivo_url
+        })));
+      }
 
       console.log("Dados carregados com sucesso!");
     } catch (err: any) {
@@ -375,9 +389,54 @@ const App: React.FC = () => {
             await fetchData(); 
           }}
           onUpdateSchedule={async (id, status) => { 
-            const { error } = await supabase.from('schedules').update({ status }).eq('id', id); 
-            if (error) alert("Erro ao atualizar status da aula: " + error.message);
-            await fetchData(); 
+            try {
+              // 1. Buscar os dados atuais da aula
+              const { data: schedule, error: fetchError } = await supabase.from('schedules').select('*').eq('id', id).single();
+              if (fetchError) throw fetchError;
+
+              const currentStatus = schedule.status?.toUpperCase();
+              let targetStatus = status.toUpperCase();
+              let updatedTitle = schedule.title || '';
+
+              // Se o banco não aceita 'ABSENT', salvamos como 'COMPLETED' mas marcamos no título
+              if (targetStatus === 'ABSENT') {
+                targetStatus = 'COMPLETED';
+                if (!updatedTitle.includes('[FALTA]')) {
+                  updatedTitle = `[FALTA] ${updatedTitle}`.trim();
+                }
+              }
+
+              // 2. Atualizar a aula
+              const { error: updateError } = await supabase.from('schedules')
+                .update({ status: targetStatus, title: updatedTitle })
+                .eq('id', id); 
+              
+              if (updateError) throw updateError;
+
+              // 3. Lógica do Contador de Ciclo
+              // Se a aula saiu de PENDENTE para algo finalizado (COMPLETED ou o que era ABSENT)
+              if (currentStatus === 'PENDING' && targetStatus === 'COMPLETED') {
+                const { data: profile } = await supabase.from('profiles').select('total_completed_classes').eq('id', schedule.student_id).single();
+                if (profile) {
+                  const newCount = (profile.total_completed_classes || 0) + 1;
+                  await supabase.from('profiles').update({ total_completed_classes: newCount }).eq('id', schedule.student_id);
+                }
+              }
+              
+              // Se a aula foi reaberta
+              if (targetStatus === 'PENDING' && currentStatus === 'COMPLETED') {
+                const { data: profile } = await supabase.from('profiles').select('total_completed_classes').eq('id', schedule.student_id).single();
+                if (profile) {
+                  const newCount = Math.max(0, (profile.total_completed_classes || 0) - 1);
+                  await supabase.from('profiles').update({ total_completed_classes: newCount }).eq('id', schedule.student_id);
+                }
+              }
+
+              await fetchData(); 
+            } catch (err: any) {
+              console.error("Erro ao atualizar agenda:", err);
+              alert("Erro ao atualizar: " + (err.message || "Erro desconhecido"));
+            }
           }}
           onAddCourse={async (c) => { 
             const { error } = await supabase.from('courses').insert([{ id: c.id, title: c.title, instrument: c.instrument, level: c.level, description: c.description, modules: c.modules, student_ids: c.studentIds }]); 
@@ -453,6 +512,7 @@ const App: React.FC = () => {
           students={students}
           courses={courses} schedules={schedules}
           materials={materials} payments={payments}
+          lessons={lessons}
           onUpdateProfile={async (u) => { await supabase.from('profiles').update({ name: u.name, whatsapp: u.whatsapp, avatar: u.avatar }).eq('id', u.id); setUser(u); await fetchData(); }}
         />
       )}

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Course, ScheduledClass, Material, Payment } from '../types';
+import { User, Course, ScheduledClass, Material, Payment, LessonDB } from '../types';
 import CoursePlayer from './CoursePlayer';
 import { DEFAULT_AVATARS } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,7 +16,8 @@ import {
   CheckCircle2, 
   Clock,
   Mic2,
-  Activity
+  Activity,
+  XCircle
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -31,13 +32,14 @@ interface StudentDashboardProps {
   schedules: ScheduledClass[];
   materials: Material[];
   payments: Payment[];
+  lessons: LessonDB[];
   onUpdateProfile: (user: User) => Promise<void>;
 }
 
 type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
-  user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], onUpdateProfile
+  user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], lessons = [], onUpdateProfile
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [viewingCourse, setViewingCourse] = useState<Course | null>(null);
@@ -99,18 +101,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
   if (viewingCourse) {
     return (
-      <div className="min-h-screen bg-white">
-        <header className="bg-slate-950 text-white h-16 flex items-center px-4 md:px-8 border-b border-white/5">
-          <div className="flex-1 font-black uppercase tracking-tighter text-lg md:text-2xl flex items-center gap-2">
-             <div className="bg-red-600 p-1.5 rounded-lg">
-               <Music className="w-5 h-5" />
-             </div>
-             <span>Aula Online</span>
-          </div>
-          <Button variant="primary" size="sm" onClick={() => setViewingCourse(null)}>Painel</Button>
-        </header>
-        <CoursePlayer course={viewingCourse} onBack={() => setViewingCourse(null)} materials={materials} />
-      </div>
+      <CoursePlayer course={viewingCourse} onBack={() => setViewingCourse(null)} materials={materials} lessons={lessons} />
     );
   }
 
@@ -236,7 +227,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                             <Badge variant="success">Ciclo Concluído</Badge>
                           </div>
                           <h4 className="font-black uppercase tracking-tighter text-lg mb-2">Ciclo de Aprendizado {i + 1}</h4>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">4 aulas concluídas com sucesso</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ciclo de 4 aulas finalizado</p>
                         </Card>
                       ));
                     })()}
@@ -252,13 +243,14 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
                    </h3>
                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                      {mySchedules.filter(s => s.status === 'COMPLETED').map(sc => (
-                       <div key={sc.id} className="border-l-4 border-red-600 pl-6 py-4 bg-slate-50 rounded-r-3xl flex justify-between items-center group hover:bg-slate-100 transition-all">
+                       <div key={sc.id} className={`border-l-4 ${sc.title?.includes('[FALTA]') ? 'border-red-400' : 'border-red-600'} pl-6 py-4 bg-slate-50 rounded-r-3xl flex justify-between items-center group hover:bg-slate-100 transition-all ${sc.title?.includes('[FALTA]') ? 'opacity-70' : ''}`}>
                           <div>
                             <p className="text-[10px] font-black uppercase text-slate-400">{new Date(sc.date).toLocaleDateString()}</p>
-                            <p className="text-sm font-black uppercase tracking-tighter group-hover:text-red-600 truncate max-w-[150px]">{sc.title || 'Aula Concluída'}</p>
+                            <p className="text-sm font-black uppercase tracking-tighter group-hover:text-red-600 truncate max-w-[150px]">{sc.title?.replace('[FALTA]', '').trim() || 'Aula Concluída'}</p>
+                            {sc.title?.includes('[FALTA]') && <Badge variant="error" className="mt-1">Falta</Badge>}
                           </div>
-                          <div className="bg-emerald-500/10 text-emerald-600 p-2 rounded-full shrink-0">
-                            <CheckCircle2 className="w-4 h-4" />
+                          <div className={`${sc.title?.includes('[FALTA]') ? 'bg-red-50 text-red-400' : 'bg-emerald-500/10 text-emerald-600'} p-2 rounded-full shrink-0`}>
+                            {sc.title?.includes('[FALTA]') ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                           </div>
                        </div>
                      ))}

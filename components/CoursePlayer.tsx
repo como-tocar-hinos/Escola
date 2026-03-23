@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { Course, Lesson, Material } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Course, Lesson, Material, LessonDB } from '../types';
 import Metronome from './Metronome';
 import Tuner from './Tuner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,11 +22,16 @@ interface CoursePlayerProps {
   course: Course;
   onBack: () => void;
   materials: Material[];
+  lessons?: LessonDB[];
 }
 
-const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }) => {
+const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials, lessons = [] }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'aulas' | 'materiais'>('aulas');
+
+  const courseLessons = useMemo(() => {
+    return lessons.filter(l => l.courseId == course.id);
+  }, [lessons, course.id]);
 
   const firstLesson = useMemo(() => {
     if (course.modules && course.modules.length > 0) {
@@ -36,11 +41,26 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
         }
       }
     }
+    if (courseLessons.length > 0) {
+      return courseLessons[0];
+    }
     return null;
-  }, [course]);
+  }, [course, courseLessons]);
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(firstLesson);
   const [videoType, setVideoType] = useState<'arranjo' | 'aovivo'>('arranjo');
+
+  useEffect(() => {
+    if (firstLesson && !selectedLesson) {
+      setSelectedLesson(firstLesson);
+    }
+  }, [firstLesson, selectedLesson]);
+
+  useEffect(() => {
+    if (firstLesson) {
+      setSelectedLesson(firstLesson);
+    }
+  }, [course.id, firstLesson]);
 
   const getYouTubeEmbedUrl = (url: string) => {
     if (!url) return '';
@@ -110,34 +130,65 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
 
       <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-8">
         {activeTab === 'aulas' ? (
-          course.modules?.map((module, mIdx) => (
-            <div key={module.id || mIdx} className="mb-6">
-              <div className="px-4 py-2 text-[8px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 border-b border-slate-200">
-                {module.title}
+          <>
+            {course.modules?.map((module, mIdx) => (
+              <div key={module.id || mIdx} className="mb-6">
+                <div className="px-4 py-2 text-[8px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 border-b border-slate-200">
+                  {module.title}
+                </div>
+                <div className="space-y-1">
+                  {module.lessons?.map((lesson, lIdx) => (
+                    <button
+                      key={lesson.id || lIdx}
+                      onClick={() => { setSelectedLesson(lesson); setIsSidebarOpen(false); }}
+                      className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all flex items-center space-x-4 ${
+                        selectedLesson?.id === lesson.id 
+                          ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' 
+                          : 'hover:bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border shrink-0 ${
+                        selectedLesson?.id === lesson.id ? 'border-white/30 bg-white/10' : 'border-slate-300 bg-white text-slate-400'
+                      }`}>
+                        {lIdx + 1}
+                      </div>
+                      <span className="text-[10px] font-black uppercase flex-1 leading-tight">{lesson.title}</span>
+                      {selectedLesson?.id === lesson.id && <Play className="w-3 h-3" />}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                {module.lessons?.map((lesson, lIdx) => (
-                  <button
-                    key={lesson.id || lIdx}
-                    onClick={() => { setSelectedLesson(lesson); setIsSidebarOpen(false); }}
-                    className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all flex items-center space-x-4 ${
-                      selectedLesson.id === lesson.id 
-                        ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' 
-                        : 'hover:bg-slate-200 text-slate-600'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border shrink-0 ${
-                      selectedLesson.id === lesson.id ? 'border-white/30 bg-white/10' : 'border-slate-300 bg-white text-slate-400'
-                    }`}>
-                      {lIdx + 1}
-                    </div>
-                    <span className="text-[10px] font-black uppercase flex-1 leading-tight">{lesson.title}</span>
-                    {selectedLesson.id === lesson.id && <Play className="w-3 h-3" />}
-                  </button>
-                ))}
+            ))}
+
+            {courseLessons.length > 0 && (
+              <div className="mb-6">
+                <div className="px-4 py-2 text-[8px] font-black uppercase text-red-600 tracking-[0.2em] mb-2 border-b border-red-100 bg-red-50/50">
+                  Aulas Extras (Banco)
+                </div>
+                <div className="space-y-1">
+                  {courseLessons.map((lesson, lIdx) => (
+                    <button
+                      key={lesson.id || lIdx}
+                      onClick={() => { setSelectedLesson(lesson); setIsSidebarOpen(false); }}
+                      className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all flex items-center space-x-4 ${
+                        selectedLesson?.id === lesson.id 
+                          ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' 
+                          : 'hover:bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border shrink-0 ${
+                        selectedLesson?.id === lesson.id ? 'border-white/30 bg-white/10' : 'border-slate-300 bg-white text-slate-400'
+                      }`}>
+                        {lIdx + 1}
+                      </div>
+                      <span className="text-[10px] font-black uppercase flex-1 leading-tight">{lesson.title}</span>
+                      {selectedLesson?.id === lesson.id && <Play className="w-3 h-3" />}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))
+            )}
+          </>
         ) : (
           <div className="p-4 space-y-3">
             {courseMaterials.length > 0 ? (
