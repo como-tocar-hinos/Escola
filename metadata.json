@@ -1,0 +1,8 @@
+{
+  "name": "Como Tocar Hinos - Escola de Música",
+  "description": "Uma plataforma completa para gerenciamento de escola de música, focada em Violão e Piano, com painéis para Admin e Alunos.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
