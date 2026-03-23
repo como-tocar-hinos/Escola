@@ -108,14 +108,16 @@ const App: React.FC = () => {
         }]);
 
         if (!createError) {
+          console.log("Perfil real criado. Atualizando registros vinculados...");
           // 2. Atualizar todas as tabelas relacionadas para o novo ID
+          // Fazemos isso um por um para garantir que as permissões RLS permitam
           await supabase.from('schedules').update({ student_id: authUser.id }).eq('student_id', preRegistered.id);
           await supabase.from('payments').update({ student_id: authUser.id }).eq('student_id', preRegistered.id);
           
           // 3. Atualizar acesso aos cursos
-          const { data: coursesToUpdate } = await supabase.from('courses').select('id, student_ids');
-          if (coursesToUpdate) {
-            for (const course of coursesToUpdate) {
+          const { data: allCourses } = await supabase.from('courses').select('id, student_ids');
+          if (allCourses) {
+            for (const course of allCourses) {
               if (course.student_ids?.includes(preRegistered.id)) {
                 const updatedIds = course.student_ids.map((id: string) => id === preRegistered.id ? authUser.id : id);
                 await supabase.from('courses').update({ student_ids: updatedIds }).eq('id', course.id);
@@ -123,13 +125,27 @@ const App: React.FC = () => {
             }
           }
 
-          // 4. Deletar o perfil temporário antigo
-          await supabase.from('profiles').delete().eq('id', preRegistered.id);
+          // 4. Deletar o perfil temporário antigo (opcional, mas limpa o banco)
+          try {
+            await supabase.from('profiles').delete().eq('id', preRegistered.id);
+          } catch (e) {
+            console.warn("Não foi possível deletar o perfil antigo, mas o novo já foi criado.");
+          }
           
           console.log("Sincronização concluída com sucesso!");
           profile = { ...preRegistered, id: authUser.id };
         } else {
-          console.error("Erro ao criar perfil real:", createError);
+          console.error("Erro ao criar perfil real (pode ser conflito de e-mail):", createError);
+          // Se falhou ao criar porque o e-mail já existe, vamos tentar apenas atualizar o ID do existente
+          const { error: updateIdError } = await supabase
+            .from('profiles')
+            .update({ id: authUser.id })
+            .eq('email', authUser.email);
+          
+          if (!updateIdError) {
+             console.log("ID do perfil existente atualizado com sucesso.");
+             profile = { ...preRegistered, id: authUser.id };
+          }
         }
       }
     }
@@ -279,29 +295,27 @@ const App: React.FC = () => {
       if (authError) throw authError;
 
       if (authData.user) {
-        // Tenta criar o perfil imediatamente por conveniência
-        await supabase.from('profiles').insert([{
-          id: authData.user.id,
-          name: data.name,
-          email: data.email.trim(),
-          role: 'STUDENT',
-          instrument: data.instrument,
-          level: data.level,
-          avatar: DEFAULT_AVATARS.male,
-          total_completed_classes: 0
-        }]);
+        console.log("Usuário autenticado. Sincronizando perfil...");
+        
+        // Em vez de dar insert direto (que pode falhar se o Admin já criou o aluno),
+        // usamos o ensureProfileExists que já tem a lógica de migração e herança de dados.
+        const profile = await ensureProfileExists(authData.user);
         
         if (!authData.session) {
-          alert("✅ CONTA CRIADA! Verifique seu e-mail agora. Você PRECISA clicar no link de confirmação para poder entrar.");
+          alert("✅ CONTA CRIADA! Verifique sua caixa de entrada (e o SPAM). Você PRECISA clicar no link de confirmação enviado para o seu e-mail para poder acessar o painel.");
         } else {
-          // Caso o Supabase esteja configurado para logar direto sem confirmação
-          const profile = await ensureProfileExists(authData.user);
           setUser(profile);
+          console.log("Registro e login automáticos concluídos.");
           await fetchData();
         }
       }
     } catch (err: any) {
-      alert("Erro ao cadastrar: " + err.message);
+      console.error("Erro no registro:", err);
+      if (err.message.includes("User already registered")) {
+        alert("❌ Este e-mail já está cadastrado. Tente fazer Login em vez de Cadastro.");
+      } else {
+        alert("Erro ao cadastrar: " + (err.message || "Verifique os dados e tente novamente."));
+      }
     } finally {
       setLoading(false);
     }
@@ -436,6 +450,7 @@ const App: React.FC = () => {
       ) : (
         <StudentDashboard 
           user={user} onLogout={handleLogout}
+          students={students}
           courses={courses} schedules={schedules}
           materials={materials} payments={payments}
           onUpdateProfile={async (u) => { await supabase.from('profiles').update({ name: u.name, whatsapp: u.whatsapp, avatar: u.avatar }).eq('id', u.id); setUser(u); await fetchData(); }}

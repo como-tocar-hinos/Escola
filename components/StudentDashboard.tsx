@@ -25,6 +25,7 @@ import { Input } from './ui/Input';
 
 interface StudentDashboardProps {
   user: User;
+  students: User[];
   onLogout: () => void;
   courses: Course[];
   schedules: ScheduledClass[];
@@ -36,7 +37,7 @@ interface StudentDashboardProps {
 type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
 
 const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
-  user, onLogout, courses = [], schedules = [], materials = [], payments = [], onUpdateProfile
+  user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], onUpdateProfile
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [viewingCourse, setViewingCourse] = useState<Course | null>(null);
@@ -45,13 +46,32 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filtra apenas o que pertence ao aluno logado
-  const myCourses = (courses || []).filter(c => c.studentIds?.includes(user.id));
+  // Lógica de filtragem robusta:
+  // Se o aluno foi cadastrado pelo Admin, ele pode ter um ID diferente do ID do Supabase Auth.
+  // Procuramos por qualquer perfil que tenha o mesmo e-mail para garantir que ele veja seus dados.
+  const myProfileIds = (students || [])
+    .filter(s => s.email?.toLowerCase() === user.email?.toLowerCase())
+    .map(s => s.id);
+  
+  // Inclui o ID atual do usuário logado na lista de IDs permitidos
+  if (!myProfileIds.includes(user.id)) {
+    myProfileIds.push(user.id);
+  }
+
+  // Filtra apenas o que pertence ao aluno logado (usando qualquer um dos IDs encontrados)
+  const myCourses = (courses || []).filter(c => 
+    c.studentIds?.some(id => myProfileIds.includes(id))
+  );
+  
   const mySchedules = (schedules || [])
-    .filter(s => s.studentId === user.id)
+    .filter(s => myProfileIds.includes(s.studentId))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
-  const myPayments = (payments || []).filter(p => p.studentId === user.id);
+  const myPayments = (payments || []).filter(p => myProfileIds.includes(p.studentId));
+  
+  const myMaterials = (materials || []).filter(m => 
+    !m.studentIds || m.studentIds.length === 0 || m.studentIds.some(id => myProfileIds.includes(id))
+  );
   
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

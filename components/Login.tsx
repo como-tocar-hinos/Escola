@@ -20,6 +20,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister }) => {
   const [instrument, setInstrument] = useState<Instrument>('Violão');
   const [level, setLevel] = useState<Level>('NZ');
   const [role, setRole] = useState<UserRole>('STUDENT');
+  const [rememberMe, setRememberMe] = useState(false);
+
+  React.useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +38,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister }) => {
       if (!name) return alert("Por favor, preencha seu nome.");
       onRegister({ email, password, name, instrument, level });
     } else {
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
       onLogin(email, password, role);
     }
   };
@@ -146,6 +160,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onRegister }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                   />
+
+                  <div className="flex items-center gap-3 ml-4">
+                    <input 
+                      type="checkbox" 
+                      id="rememberMe"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-5 h-5 accent-red-600 rounded-lg cursor-pointer"
+                    />
+                    <label htmlFor="rememberMe" className="text-[10px] font-black uppercase text-slate-400 cursor-pointer tracking-widest">
+                      Lembrar meu e-mail
+                    </label>
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div 
