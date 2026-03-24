@@ -62,6 +62,7 @@ export interface Course {
 export interface ScheduledClass {
   id: string;
   studentId: string;
+  studentName?: string; // Nome do aluno para facilitar visualização no banco
   teacherId: string;
   date: string;
   time: string;

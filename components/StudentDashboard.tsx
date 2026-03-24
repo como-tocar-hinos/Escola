@@ -37,10 +37,11 @@ interface StudentDashboardProps {
 
 type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
 
-const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
-  user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], onUpdateProfile
-}) => {
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
+    user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], onUpdateProfile
+  }) => {
+    console.log("StudentDashboard Render:", { userEmail: user.email, userRole: user.role, coursesCount: courses.length });
+    const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [viewingCourse, setViewingCourse] = useState<Course | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState<User>(user);

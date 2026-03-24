@@ -51,7 +51,13 @@ const App: React.FC = () => {
       // 3. Buscar Agendas
       const { data: dbSchedules, error: sError } = await supabase.from('schedules').select('*');
       if (sError) throw sError;
-      if (dbSchedules) setSchedules(dbSchedules.map((s: any) => ({ ...s, studentId: s.student_id, teacherId: s.teacher_id, status: s.status?.toUpperCase() || 'PENDING' })));
+      if (dbSchedules) setSchedules(dbSchedules.map((s: any) => ({ 
+        ...s, 
+        studentId: s.student_id, 
+        studentName: s.student_name, // Mapeia o novo campo do banco
+        teacherId: s.teacher_id, 
+        status: s.status?.toUpperCase() || 'PENDING' 
+      })));
 
       // 4. Buscar Pagamentos
       const { data: dbPayments, error: payError } = await supabase.from('payments').select('*');
@@ -152,7 +158,7 @@ const App: React.FC = () => {
     if (profile) {
       return { 
         ...profile, 
-        role: profile.role.toUpperCase(),
+        role: (profile.role || 'STUDENT').toUpperCase() as UserRole,
         totalCompletedClasses: profile.total_completed_classes || 0
       };
     }
@@ -192,7 +198,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      console.log("Checando sessão...");
+      console.log("Checando sessão inicial...");
       const timeout = setTimeout(() => {
         if (loading) {
           console.warn("Timeout na checagem de sessão. Forçando carregamento...");
@@ -201,18 +207,23 @@ const App: React.FC = () => {
       }, 5000);
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error("Erro ao buscar sessão:", sessionError);
+          throw sessionError;
+        }
+
         if (session?.user) {
-          console.log("Sessão encontrada para:", session.user.email);
+          console.log("Sessão ativa encontrada para:", session.user.email);
           const profile = await ensureProfileExists(session.user);
+          console.log("Perfil carregado da sessão:", profile);
           setUser(profile);
-          // Busca os dados APÓS confirmar que o usuário está logado
           await fetchData();
         } else {
-          console.log("Nenhuma sessão ativa.");
+          console.log("Nenhuma sessão ativa encontrada.");
         }
       } catch (e) {
-        console.error("Erro ao checar sessão inicial:", e);
+        console.error("Erro fatal na checagem de sessão:", e);
       } finally {
         clearTimeout(timeout);
         setLoading(false);
@@ -236,7 +247,7 @@ const App: React.FC = () => {
 
   const handleLogin = async (email: string, password: string, role: UserRole) => {
     setLoading(true);
-    console.log(`Tentando login: ${email} como ${role}`);
+    console.log(`[LOGIN] Iniciando tentativa: ${email} como ${role}`);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -245,6 +256,7 @@ const App: React.FC = () => {
       });
 
       if (error) {
+        console.error("[LOGIN] Erro na autenticação Supabase:", error);
         if (error.message.includes("Email not confirmed")) {
           throw new Error("⚠️ Seu e-mail foi cadastrado mas falta confirmar o link enviado para sua caixa de entrada.");
         }
@@ -255,20 +267,24 @@ const App: React.FC = () => {
       }
 
       if (data.user) {
+        console.log("[LOGIN] Usuário autenticado com sucesso no Auth:", data.user.id);
         const profile = await ensureProfileExists(data.user);
+        console.log("[LOGIN] Perfil recuperado:", { profileRole: profile.role, selectedRole: role });
         
         // Bloqueia se um aluno tentar entrar no painel de admin ou vice-versa
-        if (profile.role !== role) {
+        if (profile.role.toUpperCase() !== role.toUpperCase()) {
+          console.warn("[LOGIN] Divergência de papel (Role Mismatch)!");
           await supabase.auth.signOut();
-          throw new Error(`Este usuário é um ${profile.role}. Selecione '${profile.role === 'ADMIN' ? 'Admin' : 'Aluno'}' acima.`);
+          throw new Error(`Este usuário é um ${profile.role === 'ADMIN' ? 'Administrador' : 'Aluno'}. Selecione '${profile.role === 'ADMIN' ? 'Admin' : 'Aluno'}' acima.`);
         }
         
         setUser(profile);
-        console.log("Login realizado com sucesso!");
+        console.log("[LOGIN] Login concluído com sucesso!");
         await fetchData();
       }
     } catch (err: any) {
-      alert(err.message || "Ocorreu um erro inesperado ao entrar.");
+      console.error("[LOGIN] Erro capturado no handleLogin:", err);
+      throw err; // Re-throw to be caught by Login component
     } finally {
       setLoading(false);
     }
@@ -341,20 +357,36 @@ const App: React.FC = () => {
           user={user} onLogout={handleLogout}
           students={students} courses={courses} schedules={schedules}
           payments={payments} materials={materials}
-          onAddStudent={async (s) => { 
-            const { error } = await supabase.from('profiles').insert([{
-              id: s.id,
-              name: s.name,
-              email: s.email,
-              role: s.role,
-              instrument: s.instrument,
-              level: s.level,
-              avatar: s.avatar,
-              whatsapp: s.whatsapp,
-              total_completed_classes: s.totalCompletedClasses || 0
-            }]); 
-            if (error) alert("Erro ao criar aluno: " + error.message);
-            await fetchData(); 
+          onAddStudent={async (s, password) => { 
+            try {
+              console.log("Iniciando criação de aluno via API...");
+              const response = await fetch('/api/admin/create-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: s.email,
+                  password,
+                  name: s.name,
+                  instrument: s.instrument,
+                  level: s.level,
+                  role: s.role,
+                  whatsapp: s.whatsapp || ''
+                })
+              });
+              
+              const result = await response.json();
+              if (!response.ok) {
+                console.error("Erro retornado pela API:", result);
+                throw new Error(result.error || 'Erro ao criar aluno');
+              }
+              
+              console.log("Aluno criado com sucesso!");
+              alert("Aluno criado com sucesso! Você já pode enviar o login e senha para ele.");
+              await fetchData(); 
+            } catch (err: any) {
+              console.error("Erro capturado no onAddStudent:", err);
+              alert("Erro ao criar aluno: " + err.message);
+            }
           }}
           onUpdateStudent={async (s) => { 
             const { error } = await supabase.from('profiles').update({ 
@@ -369,7 +401,17 @@ const App: React.FC = () => {
             await fetchData(); 
           }}
           onAddSchedule={async (sc) => { 
-            const { error } = await supabase.from('schedules').insert([{ id: sc.id, student_id: sc.studentId, teacher_id: sc.teacherId, date: sc.date, time: sc.time, instrument: sc.instrument, status: sc.status, title: sc.title }]); 
+            const { error } = await supabase.from('schedules').insert([{ 
+              id: sc.id, 
+              student_id: sc.studentId, 
+              student_name: sc.studentName, // Salva o nome do aluno no banco
+              teacher_id: sc.teacherId, 
+              date: sc.date, 
+              time: sc.time, 
+              instrument: sc.instrument, 
+              status: sc.status, 
+              title: sc.title 
+            }]); 
             if (error) alert("Erro ao agendar aula: " + error.message);
             await fetchData(); 
           }}

@@ -35,7 +35,7 @@ interface AdminDashboardProps {
   schedules: ScheduledClass[];
   payments: Payment[];
   materials: Material[];
-  onAddStudent: (s: User) => Promise<void>;
+  onAddStudent: (s: User, password?: string) => Promise<void>;
   onUpdateStudent: (s: User) => Promise<void>;
   onAddSchedule: (sc: ScheduledClass) => Promise<void>;
   onUpdateSchedule: (id: string, status: ScheduledClass['status']) => Promise<void>;
@@ -480,7 +480,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               <div className="flex items-center gap-4 mb-4">
                                 <img src={student?.avatar || DEFAULT_AVATARS.male} className="w-12 h-12 rounded-full border-2 border-slate-100 object-cover" alt="S" />
                                 <div>
-                                  <h4 className="font-black uppercase text-sm tracking-tight group-hover:text-red-600 transition-colors">{student?.name}</h4>
+                                  <h4 className="font-black uppercase text-sm tracking-tight group-hover:text-red-600 transition-colors">
+                                    {student?.name || sc.studentName || 'Aluno não encontrado'}
+                                  </h4>
                                   <p className="text-[9px] font-bold text-slate-400 uppercase">{student?.instrument} • {student?.level}</p>
                                 </div>
                               </div>
@@ -575,7 +577,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <div className="flex items-center gap-4">
                                   <img src={students.find(s => s.id === sc.studentId)?.avatar || DEFAULT_AVATARS.male} className="w-10 h-10 rounded-full border-2 border-slate-100 object-cover" alt="S" />
                                   <div className="flex flex-col">
-                                    <span className="text-xs font-black uppercase tracking-tight">{students.find(s => s.id === sc.studentId)?.name}</span>
+                                    <span className="text-xs font-black uppercase tracking-tight">
+                                      {students.find(s => s.id === sc.studentId)?.name || sc.studentName || 'Aluno não encontrado'}
+                                    </span>
                                     <span className="text-[8px] font-bold text-slate-400 uppercase">{students.find(s => s.id === sc.studentId)?.instrument}</span>
                                   </div>
                                 </div>
@@ -900,6 +904,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <form onSubmit={async (e) => { 
                 e.preventDefault(); 
                 const formData = new FormData(e.currentTarget);
+                const password = formData.get('password') as string;
+                if (password.length < 6) {
+                  alert("A senha deve ter pelo menos 6 caracteres.");
+                  return;
+                }
                 const newStudent: User = {
                   id: crypto.randomUUID(),
                   email: formData.get('email') as string,
@@ -911,12 +920,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   totalCompletedClasses: 0
                 };
                 setIsSyncing(true);
-                await onAddStudent(newStudent); 
+                await onAddStudent(newStudent, password); 
                 setIsSyncing(false);
                 setIsAddingStudent(false); 
               }} className="space-y-6">
                 <Input label="Nome Completo" name="name" required placeholder="Ex: João Silva" />
                 <Input label="E-mail" name="email" type="email" required placeholder="exemplo@email.com" />
+                <Input label="Senha Temporária" name="password" type="password" required placeholder="••••••••" />
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Instr.</label>
@@ -1001,14 +1011,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 const studentId = formData.get('studentId') as string;
                 const student = students.find(s => s.id === studentId);
                 const newSchedule: ScheduledClass = {
-                  id: crypto.randomUUID(),
-                  studentId,
-                  teacherId: user.id,
-                  date: formData.get('date') as string,
-                  time: formData.get('time') as string,
-                  title: formData.get('title') as string,
-                  status: 'PENDING',
-                  instrument: student?.instrument || 'Violão'
+                   id: crypto.randomUUID(),
+                   studentId,
+                   studentName: student?.name, // Salva o nome para facilitar visualização no Supabase
+                   teacherId: user.id,
+                   date: formData.get('date') as string,
+                   time: formData.get('time') as string,
+                   title: formData.get('title') as string,
+                   status: 'PENDING',
+                   instrument: student?.instrument || 'Violão'
                 };
                 setIsSyncing(true);
                 await onAddSchedule(newSchedule); 
