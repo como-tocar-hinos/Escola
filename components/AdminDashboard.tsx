@@ -146,7 +146,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <h2 className="text-2xl font-black text-red-600 tracking-tighter uppercase">Painel</h2>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Administrativo</span>
         </div>
-        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-slate-950 hover:text-red-600 transition-colors">
+        <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-slate-950 hover:text-red-600 transition-colors">
           <X className="w-6 h-6" />
         </button>
       </div>
@@ -199,13 +199,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   return (
     <div className="flex h-screen bg-white overflow-hidden relative">
       {/* Sidebar Desktop */}
-      <aside className="w-64 hidden md:block shrink-0 border-r border-slate-100">
+      <aside className="w-64 hidden lg:block shrink-0 border-r border-slate-100">
         <SidebarContent />
       </aside>
 
       {/* Sidebar Mobile (Floating Drawer) */}
       <div 
-        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] md:hidden transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] lg:hidden transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
         onClick={() => setIsSidebarOpen(false)}
       >
         <aside 
@@ -218,33 +218,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <main className="flex-1 flex flex-col min-w-0 bg-white">
         {/* Sticky Header Mobile & Desktop */}
-        <header className="sticky top-0 z-[200] bg-white/90 backdrop-blur-md px-4 md:px-8 py-3 md:py-6 flex justify-between items-center border-b border-slate-100">
-           <div className="flex items-center gap-3 md:gap-4">
+        <header className="sticky top-0 z-[200] bg-white/90 backdrop-blur-md px-4 lg:px-8 py-3 lg:py-6 flex justify-between items-center border-b border-slate-100">
+           <div className="flex items-center gap-3 lg:gap-4">
              <button 
                onClick={() => setIsSidebarOpen(true)} 
-               className="md:hidden bg-black text-white p-2.5 rounded-xl shadow-xl active:scale-95 transition-transform"
+               className="lg:hidden bg-black text-white p-2.5 rounded-xl shadow-xl active:scale-95 transition-transform"
              >
                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                  <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                </svg>
              </button>
              <div className="flex flex-col">
-               <h1 className="text-lg md:text-3xl font-black uppercase tracking-tighter truncate leading-none">
+               <h1 className="text-lg lg:text-3xl font-black uppercase tracking-tighter truncate leading-none">
                  {activeView === 'dashboard' && "Dashboard"}
                  {activeView === 'students' && "Alunos"}
                  {activeView === 'courses' && "Cursos"}
                  {activeView === 'schedules' && "Agenda"}
                  {activeView === 'payments' && "Financeiro"}
                </h1>
-               <p className="hidden md:block text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Escola Como Tocar Hinos</p>
+               <p className="hidden lg:block text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Escola Como Tocar Hinos</p>
              </div>
            </div>
            
            <div className="flex items-center gap-3">
-             <div className={`shrink-0 px-3 py-1 rounded-full text-[7px] md:text-[9px] font-black uppercase ${isSyncing ? 'bg-yellow-500 text-black' : 'bg-green-600 text-white shadow-lg shadow-green-600/20'}`}>
+             <div className={`shrink-0 px-3 py-1 rounded-full text-[7px] lg:text-[9px] font-black uppercase ${isSyncing ? 'bg-yellow-500 text-black' : 'bg-green-600 text-white shadow-lg shadow-green-600/20'}`}>
                {isSyncing ? "..." : "OK"}
              </div>
-             <img src={user.avatar} className="w-7 h-7 md:w-8 md:h-8 rounded-full border-2 border-red-600" alt="Admin" />
+             <img src={user.avatar} className="w-7 h-7 lg:w-8 lg:h-8 rounded-full border-2 border-red-600" alt="Admin" />
            </div>
         </header>
 
