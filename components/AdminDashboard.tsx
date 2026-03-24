@@ -306,7 +306,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <Card className="p-8 border-slate-100">
                   <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Próximos Compromissos</h3>
                   <div className="space-y-4">
-                    {schedules.filter(s => s.status === 'PENDING').slice(0, 5).map(sc => (
+                    {schedules
+                      .filter(s => s.status === 'PENDING')
+                      .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())
+                      .slice(0, 5)
+                      .map(sc => (
                       <div key={sc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] font-black shadow-sm">
@@ -446,7 +450,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {(() => {
-                  const pendingSchedules = schedules.filter(s => s.status === 'PENDING');
+                  const pendingSchedules = [...schedules]
+                    .filter(s => s.status === 'PENDING')
+                    .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
                   
                   // Group by week
                   const weeks: { [key: string]: ScheduledClass[] } = {};
@@ -579,56 +585,80 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {schedules
-                          .filter(s => s.status === 'COMPLETED' || s.status === 'ABSENT')
-                          .filter(s => {
-                            const student = students.find(st => st.id === s.studentId);
-                            return (student?.name || '').toLowerCase().includes(scheduleSearchTerm.toLowerCase());
-                          })
-                          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                          .map(sc => (
-                            <tr key={sc.id} className={`hover:bg-slate-50 transition-colors group ${sc.status === 'ABSENT' ? 'opacity-70' : ''}`}>
-                              <td className="p-6 md:p-8">
-                                <div className="flex items-center gap-4">
-                                  <img src={students.find(s => s.id === sc.studentId)?.avatar || DEFAULT_AVATARS.male} className="w-10 h-10 rounded-full border-2 border-slate-100 object-cover" alt="S" />
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-black uppercase tracking-tight">
-                                      {students.find(s => s.id === sc.studentId)?.name || sc.studentName || 'Aluno não encontrado'}
-                                    </span>
-                                    <span className="text-[8px] font-bold text-slate-400 uppercase">{students.find(s => s.id === sc.studentId)?.instrument}</span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="p-6 md:p-8">
-                                <span className="text-xs font-black uppercase">{new Date(sc.date).toLocaleDateString('pt-BR')}</span>
-                              </td>
-                              <td className="p-6 md:p-8">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sc.time}</span>
-                              </td>
-                              <td className="p-6 md:p-8">
-                                <Badge variant={sc.title?.includes('[FALTA]') ? 'error' : 'success'}>
-                                  {sc.title?.includes('[FALTA]') ? 'Falta' : 'Concluído'}
-                                </Badge>
-                              </td>
-                              <td className="p-6 md:p-8 text-center">
-                                <Button 
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => onUpdateSchedule(sc.id, 'PENDING')}
-                                  className="min-w-[100px]"
-                                >
-                                  Reabrir
-                                </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        {schedules.filter(s => s.status === 'COMPLETED' || s.status === 'ABSENT').length === 0 && (
-                          <tr>
-                            <td colSpan={5} className="p-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                              Nenhuma aula concluída encontrada.
-                            </td>
-                          </tr>
-                        )}
+                        {(() => {
+                          const filtered = schedules
+                            .filter(s => s.status === 'COMPLETED' || s.status === 'ABSENT')
+                            .filter(s => {
+                              const student = students.find(st => st.id === s.studentId);
+                              return (student?.name || '').toLowerCase().includes(scheduleSearchTerm.toLowerCase());
+                            })
+                            .sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={5} className="p-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                  Nenhuma aula concluída encontrada.
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          // Group by month
+                          const groups: { [key: string]: ScheduledClass[] } = {};
+                          filtered.forEach(s => {
+                            const date = new Date(s.date);
+                            const monthKey = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                            if (!groups[monthKey]) groups[monthKey] = [];
+                            groups[monthKey].push(s);
+                          });
+
+                          return Object.keys(groups).map(month => (
+                            <React.Fragment key={month}>
+                              <tr className="bg-slate-50/50">
+                                <td colSpan={5} className="px-8 py-4 text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] border-y border-slate-100">
+                                  {month}
+                                </td>
+                              </tr>
+                              {groups[month].map(sc => (
+                                <tr key={sc.id} className={`hover:bg-slate-50 transition-colors group ${sc.status === 'ABSENT' ? 'opacity-70' : ''}`}>
+                                  <td className="p-6 md:p-8">
+                                    <div className="flex items-center gap-4">
+                                      <img src={students.find(s => s.id === sc.studentId)?.avatar || DEFAULT_AVATARS.male} className="w-10 h-10 rounded-full border-2 border-slate-100 object-cover" alt="S" />
+                                      <div className="flex flex-col">
+                                        <span className="text-xs font-black uppercase tracking-tight">
+                                          {students.find(s => s.id === sc.studentId)?.name || sc.studentName || 'Aluno não encontrado'}
+                                        </span>
+                                        <span className="text-[8px] font-bold text-slate-400 uppercase">{students.find(s => s.id === sc.studentId)?.instrument}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-6 md:p-8">
+                                    <span className="text-xs font-black uppercase">{new Date(sc.date).toLocaleDateString('pt-BR')}</span>
+                                  </td>
+                                  <td className="p-6 md:p-8">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sc.time}</span>
+                                  </td>
+                                  <td className="p-6 md:p-8">
+                                    <Badge variant={sc.title?.includes('[FALTA]') ? 'error' : 'success'}>
+                                      {sc.title?.includes('[FALTA]') ? 'Falta' : 'Concluído'}
+                                    </Badge>
+                                  </td>
+                                  <td className="p-6 md:p-8 text-center">
+                                    <Button 
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => onUpdateSchedule(sc.id, 'PENDING')}
+                                      className="min-w-[100px]"
+                                    >
+                                      Reabrir
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </React.Fragment>
+                          ));
+                        })()}
                       </tbody>
                     </table>
                   </div>
