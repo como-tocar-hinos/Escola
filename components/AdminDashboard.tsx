@@ -264,7 +264,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card className="p-8 border-slate-100">
-                  <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Aulas por Instrumento</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Alunos por Instrumento</h3>
                   <div className="space-y-4">
                     {['Violão', 'Piano'].map(inst => {
                       const count = students.filter(s => s.instrument === inst).length;
