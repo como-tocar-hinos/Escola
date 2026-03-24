@@ -868,6 +868,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onChange={e => setEditingStudent({...editingStudent, whatsapp: e.target.value})} 
                   placeholder="(00) 00000-0000"
                 />
+                <Input 
+                  label="URL da Foto de Perfil"
+                  value={editingStudent.avatar || ''} 
+                  onChange={e => setEditingStudent({...editingStudent, avatar: e.target.value})} 
+                  placeholder="https://link-da-imagem.com/foto.jpg"
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Instr.</label>
