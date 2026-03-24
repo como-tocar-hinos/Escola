@@ -53,7 +53,7 @@ async function startServer() {
           const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
           if (listError) throw listError;
           
-          const existingUser = users.find(u => u.email?.toLowerCase() === trimmedEmail);
+          const existingUser = (users as any[]).find(u => u.email?.toLowerCase() === trimmedEmail);
           if (!existingUser) throw new Error("Usuário consta como registrado mas não foi encontrado na lista.");
           
           userId = existingUser.id;

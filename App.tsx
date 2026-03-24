@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, UserRole, Course, ScheduledClass, Payment, Material, Instrument, Level, LessonDB } from './types';
+import { User, UserRole, Course, ScheduledClass, Payment, Material, Instrument, Level, LessonDB, Quote } from './types';
 import { MOCK_ADMIN, MOCK_STUDENTS, MOCK_COURSES, MOCK_SCHEDULES, MOCK_PAYMENTS, MOCK_MATERIALS, DEFAULT_AVATARS } from './constants';
 import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduledClass[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -68,6 +69,10 @@ const App: React.FC = () => {
       const { data: dbMaterials, error: mError } = await supabase.from('materials').select('*');
       if (mError) throw mError;
       if (dbMaterials) setMaterials(dbMaterials);
+
+      // 6. Buscar Citações
+      const { data: dbQuotes, error: qError } = await supabase.from('quotes').select('*');
+      if (!qError && dbQuotes) setQuotes(dbQuotes);
 
       console.log("Dados carregados com sucesso!");
     } catch (err: any) {
@@ -539,6 +544,7 @@ const App: React.FC = () => {
           students={students}
           courses={courses} schedules={schedules}
           materials={materials} payments={payments}
+          quotes={quotes}
           onUpdateProfile={async (u) => { await supabase.from('profiles').update({ name: u.name, whatsapp: u.whatsapp, avatar: u.avatar }).eq('id', u.id); setUser(u); await fetchData(); }}
         />
       )}

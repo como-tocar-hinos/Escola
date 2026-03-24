@@ -20,7 +20,8 @@ import {
   Layout,
   Upload,
   Activity,
-  Search
+  Search,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -67,6 +68,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [isAddingSchedule, setIsAddingSchedule] = useState(false);
   const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState('Olá! Passando para lembrar da importância de dedicar pelo menos 15 minutos hoje ao seu instrumento. A prática constante é o segredo do louvor perfeito! 🎹🎸');
   const [scheduleSearchTerm, setScheduleSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -165,6 +168,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           active={activeView === 'payments'} 
           onClick={() => { setActiveView('payments'); setIsSidebarOpen(false); }} 
           icon={<CreditCard className="w-5 h-5" />} label="Financeiro" 
+        />
+        <SidebarLink 
+          active={isSendingBroadcast} 
+          onClick={() => { setIsSendingBroadcast(true); setIsSidebarOpen(false); }} 
+          icon={<MessageCircle className="w-5 h-5" />} label="Lembrete Geral" 
         />
       </nav>
       <div className="p-8 border-t border-slate-100">
@@ -1079,6 +1087,67 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <Input label="Vencimento" name="dueDate" type="date" required />
                 <Button type="submit" className="w-full py-6 mt-4">Registrar Pagamento</Button>
               </form>
+            </Card>
+          </div>
+        )}
+
+        {isSendingBroadcast && (
+          <div className="fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4 backdrop-blur-md">
+            <Card className="bg-white w-full max-w-2xl p-8 md:p-10 space-y-6 md:space-y-10 animate-in zoom-in duration-300 shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar relative rounded-[3rem]">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter">Lembrete de Estudo</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Envio via WhatsApp</p>
+                </div>
+                <button type="button" onClick={() => setIsSendingBroadcast(false)} className="text-3xl md:text-4xl font-black hover:text-red-600 transition-colors">&times;</button>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Mensagem do Lembrete</label>
+                  <textarea 
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    className="w-full border-2 border-gray-100 p-6 rounded-3xl text-sm font-bold outline-none focus:border-red-600 transition-all min-h-[120px] resize-none"
+                    placeholder="Escreva a mensagem aqui..."
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-100 pb-2">Lista de Alunos ({students.filter(s => s.role === 'STUDENT' && s.whatsapp).length})</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {students.filter(s => s.role === 'STUDENT' && s.whatsapp).map(s => (
+                      <div key={s.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-red-600 transition-all">
+                        <div className="flex items-center gap-3">
+                          <img src={s.avatar || DEFAULT_AVATARS.male} className="w-8 h-8 rounded-full object-cover" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase truncate max-w-[120px]">{s.name}</span>
+                            <span className="text-[8px] font-bold text-slate-400">{s.whatsapp}</span>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="bg-green-500 text-white hover:bg-green-600 p-2 rounded-xl"
+                          onClick={() => {
+                            const phone = s.whatsapp?.replace(/\D/g, '');
+                            const url = `https://api.whatsapp.com/send?phone=55${phone}&text=${encodeURIComponent(broadcastMessage)}`;
+                            window.open(url, '_blank');
+                          }}
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-6 bg-red-50 rounded-3xl border border-red-100">
+                  <p className="text-[10px] font-bold text-red-600 leading-relaxed">
+                    <strong>Dica:</strong> Clique no botão verde ao lado de cada aluno. Isso abrirá uma nova aba com a conversa e a mensagem já preenchida. Basta apertar o botão de enviar no WhatsApp.
+                  </p>
+                </div>
+              </div>
             </Card>
           </div>
         )}

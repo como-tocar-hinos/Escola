@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Course, ScheduledClass, Material, Payment, LessonDB } from '../types';
+import { User, Course, ScheduledClass, Material, Payment, LessonDB, Quote } from '../types';
 import CoursePlayer from './CoursePlayer';
 import { DEFAULT_AVATARS } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,13 +32,14 @@ interface StudentDashboardProps {
   schedules: ScheduledClass[];
   materials: Material[];
   payments: Payment[];
+  quotes?: Quote[];
   onUpdateProfile: (user: User) => Promise<void>;
 }
 
 type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
 
   const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
-    user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], onUpdateProfile
+    user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], quotes = [], onUpdateProfile
   }) => {
     console.log("StudentDashboard Render:", { userEmail: user.email, userRole: user.role, coursesCount: courses.length });
     const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -261,10 +262,33 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                 </Card>
 
                 <Card className="bg-white border-2 border-red-600 text-slate-900 p-8">
-                  <h4 className="font-black uppercase tracking-widest text-[10px] mb-2 text-red-600">Dica do Professor</h4>
-                  <p className="text-sm font-bold leading-relaxed">
-                    "A prática constante é o segredo do louvor perfeito. Dedique pelo menos 15 minutos por dia ao seu instrumento."
-                  </p>
+                  <h4 className="font-black uppercase tracking-widest text-[10px] mb-2 text-red-600">Citação inspirada</h4>
+                  {(() => {
+                    const defaultQuote = {
+                      text: 'O emprego de <strong>instrumentos de música</strong> não é absolutamente objetável. Eles eram usados nos cultos dos tempos antigos. Os adoradores louvavam a Deus com a harpa e o címbalo, e <strong>a música deve ter seu lugar em nossos cultos</strong>. Isso faz aumentar o interesse. Alegro-me de ouvir aqui os instrumentos de música. <strong>Deus quer que os tenhamos</strong>. Quer que O louvemos, de alma e coração e com a nossa voz, engrandecendo Seu nome perante o mundo.',
+                      reference: 'MI - 29. 1, 2'
+                    };
+
+                    let selectedQuote = defaultQuote;
+                    if (quotes.length > 0) {
+                      // Lógica para mudar a cada dia
+                      const now = new Date();
+                      const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+                      selectedQuote = quotes[dayOfYear % quotes.length];
+                    }
+
+                    return (
+                      <>
+                        <p 
+                          className="text-sm font-normal leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: `"${selectedQuote.text}"` }}
+                        />
+                        <p className="text-sm font-bold mt-2">
+                          <strong>{selectedQuote.reference}</strong>
+                        </p>
+                      </>
+                    );
+                  })()}
                 </Card>
               </aside>
             </motion.div>

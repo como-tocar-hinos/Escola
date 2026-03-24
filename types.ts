@@ -95,3 +95,10 @@ export interface Payment {
   status: 'PAID' | 'PENDING' | 'OVERDUE';
   dueDate: string;
 }
+
+export interface Quote {
+  id: string;
+  text: string;
+  reference: string;
+  created_at?: string;
+}
