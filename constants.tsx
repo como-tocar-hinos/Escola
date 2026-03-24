@@ -58,6 +58,7 @@ export const MOCK_STUDENTS: User[] = [
     instrument: 'Violão', 
     level: 'NZ', 
     avatar: DEFAULT_AVATARS.male,
+    whatsapp: '(11) 98888-7777',
     currentCycle: getDefaultCycle()
   },
   { 
@@ -68,6 +69,7 @@ export const MOCK_STUDENTS: User[] = [
     instrument: 'Piano', 
     level: 'N1', 
     avatar: DEFAULT_AVATARS.female,
+    whatsapp: '(11) 96666-5555',
     currentCycle: getDefaultCycle()
   },
 ];
