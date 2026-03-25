@@ -9,7 +9,11 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(cors());
+  app.use(cors({
+    origin: ["https://comotocarhinos.com.br", "https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app", "http://localhost:3000"],
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  }));
   app.use(express.json());
 
   // Initialize Supabase Admin Client
@@ -26,7 +30,7 @@ async function startServer() {
     : null;
 
   // API routes
-  app.get("/api/health", (req, res) => {
+  app.get(["/api/health", "/api/health/"], (req, res) => {
     res.json({ 
       status: "ok", 
       env: process.env.NODE_ENV,
@@ -34,7 +38,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/admin/create-user", async (req, res) => {
+  app.post(["/api/admin/create-user", "/api/admin/create-user/"], async (req, res) => {
     const { email, password, name, instrument, level, role, whatsapp } = req.body;
     const trimmedEmail = email.trim().toLowerCase();
     
@@ -66,7 +70,11 @@ async function startServer() {
         if (authError.message.includes("already registered") || authError.status === 422) {
           console.log("[ADMIN] Usuário já existe no Auth. Localizando ID...");
           
-          const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+          // Buscamos em todas as páginas se necessário (limite de 1000 para simplificar)
+          const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+            perPage: 1000
+          });
+          
           if (listError) {
             console.error("[ADMIN] Erro ao listar usuários:", listError);
             throw listError;
@@ -130,6 +138,59 @@ async function startServer() {
     }
   });
 
+  app.post(["/api/admin/delete-user", "/api/admin/delete-user/"], async (req, res) => {
+    const { userId } = req.body;
+    
+    if (!supabaseAdmin) {
+      return res.status(500).json({ error: "Configuração incompleta no servidor." });
+    }
+
+    try {
+      console.log(`[ADMIN] Deletando usuário do Auth: ${userId}`);
+      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      
+      if (authError) {
+        console.error("[ADMIN] Erro ao deletar do Auth:", authError);
+        throw authError;
+      }
+
+      console.log(`[ADMIN] Deletando perfil do DB: ${userId}`);
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (profileError) {
+        console.error("[ADMIN] Erro ao deletar perfil:", profileError);
+        throw profileError;
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Erro ao excluir usuário" });
+    }
+  });
+
+  app.post(["/api/admin/reset-password", "/api/admin/reset-password/"], async (req, res) => {
+    const { userId, newPassword } = req.body;
+    
+    if (!supabaseAdmin) {
+      return res.status(500).json({ error: "Configuração incompleta no servidor." });
+    }
+
+    try {
+      console.log(`[ADMIN] Redefinindo senha para: ${userId}`);
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: newPassword
+      });
+      
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Erro ao redefinir senha" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -140,13 +201,16 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Ensure API routes are NOT caught by the SPA fallback
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) return next();
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`[SERVER] Rodando em http://0.0.0.0:${PORT}`);
+    console.log(`[SERVER] Admin Key configurada: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
   });
 }
 

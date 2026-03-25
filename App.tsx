@@ -10,6 +10,7 @@ import { supabase } from './services/supabase';
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [students, setStudents] = useState<User[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -357,6 +358,14 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {isSyncing && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000] flex items-center justify-center pointer-events-auto">
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center space-y-4 animate-in zoom-in duration-300">
+            <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Sincronizando...</p>
+          </div>
+        </div>
+      )}
       {user.role === 'ADMIN' ? (
         <AdminDashboard 
           user={user} onLogout={handleLogout}
@@ -365,7 +374,11 @@ const App: React.FC = () => {
           onAddStudent={async (s, password) => { 
             try {
               console.log("Iniciando criação de aluno via API...");
-              const response = await fetch('/api/admin/create-user', {
+              const apiBaseUrl = window.location.hostname === 'localhost' 
+                ? '' 
+                : 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+              
+              const response = await fetch(`${apiBaseUrl}/api/admin/create-user`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -387,7 +400,7 @@ const App: React.FC = () => {
                 const text = await response.text();
                 console.error("Resposta não-JSON recebida:", text);
                 const isNetlify = window.location.hostname.includes('netlify') || window.location.hostname.includes('comotocarhinos.com.br');
-                throw new Error(`O servidor retornou uma resposta inesperada (não-JSON). ${isNetlify ? '\n\nDetectamos que você está usando um domínio customizado ou Netlify. Certifique-se de que as rotas de API estão sendo redirecionadas para o servidor correto.' : ''}\n\nResposta: ${text.substring(0, 100)}...`);
+                throw new Error(`O servidor retornou uma resposta inesperada (não-JSON). ${isNetlify ? '\n\nDetectamos que você está usando um domínio customizado. Tentei falar diretamente com o servidor de API, mas ele ainda retornou HTML. Isso pode acontecer se o servidor estiver reiniciando ou se houver um erro de CORS.' : ''}\n\nURL Tentada: ${apiBaseUrl}/api/admin/create-user\n\nResposta: ${text.substring(0, 100)}...`);
               }
 
               if (!response.ok) {
@@ -520,20 +533,55 @@ const App: React.FC = () => {
               return;
             }
             
-            console.log("Tentando excluir aluno ID:", id);
-            const { error } = await supabase.from('profiles').delete().eq('id', id); 
-            
-            if (error) {
-              console.error("Erro ao excluir:", error);
-              if (error.message.includes("referenced from table")) {
-                alert("Não é possível excluir este aluno pois ele possui aulas ou pagamentos vinculados. Por favor, exclua as aulas e pagamentos dele primeiro ou execute o script SQL de 'CASCADE' que enviei.");
-              } else {
-                alert("Erro ao excluir aluno: " + error.message);
+            console.log("Tentando excluir aluno (Auth + DB) ID:", id);
+            try {
+              setIsSyncing(true);
+              const apiBaseUrl = window.location.hostname === 'localhost' ? '' : 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+              
+              const response = await fetch(`${apiBaseUrl}/api/admin/delete-user`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: id })
+              });
+
+              if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Erro ao excluir usuário do Auth');
               }
-            } else {
-              console.log("Aluno excluído com sucesso.");
+
+              console.log("Aluno excluído com sucesso do Auth e DB.");
+              alert("Aluno excluído com sucesso!");
+            } catch (err: any) {
+              console.error("Erro ao excluir aluno:", err);
+              alert("Erro ao excluir aluno: " + err.message);
+            } finally {
+              setIsSyncing(false);
+              await fetchData();
             }
-            await fetchData(); 
+          }}
+          onResetPassword={async (id, newPassword) => {
+            try {
+              setIsSyncing(true);
+              const apiBaseUrl = window.location.hostname === 'localhost' ? '' : 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+              
+              const response = await fetch(`${apiBaseUrl}/api/admin/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: id, newPassword })
+              });
+
+              if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Erro ao redefinir senha');
+              }
+
+              alert("Senha redefinida com sucesso!");
+            } catch (err: any) {
+              console.error("Erro ao redefinir senha:", err);
+              alert("Erro ao redefinir senha: " + err.message);
+            } finally {
+              setIsSyncing(false);
+            }
           }}
           onDeleteSchedule={async (id) => { 
             const { error } = await supabase.from('schedules').delete().eq('id', id); 

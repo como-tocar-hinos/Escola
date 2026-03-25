@@ -46,6 +46,7 @@ interface AdminDashboardProps {
   onAddPayment: (p: Payment) => Promise<void>;
   onUpdatePayment: (id: string, updates: Partial<Payment>) => Promise<void>;
   onDeleteStudent: (id: string) => Promise<void>;
+  onResetPassword: (id: string, newPassword: string) => Promise<void>;
   onDeleteSchedule: (id: string) => Promise<void>;
   onDeleteCourse: (id: string) => Promise<void>;
   onDeletePayment: (id: string) => Promise<void>;
@@ -56,7 +57,7 @@ type AdminView = 'dashboard' | 'students' | 'courses' | 'schedules' | 'payments'
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   user, onLogout, students, courses, schedules, payments, materials, 
   onAddStudent, onUpdateStudent, onAddSchedule, onUpdateSchedule, onAddCourse, onUpdateCourseContent, onUpdateCourseAccess, onAddPayment, onUpdatePayment,
-  onDeleteStudent, onDeleteSchedule, onDeleteCourse, onDeletePayment
+  onDeleteStudent, onResetPassword, onDeleteSchedule, onDeleteCourse, onDeletePayment
 }) => {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -198,6 +199,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="flex h-screen bg-white overflow-hidden relative">
+      {isSyncing && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000] flex items-center justify-center pointer-events-auto">
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col items-center space-y-4 animate-in zoom-in duration-300">
+            <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Sincronizando...</p>
+          </div>
+        </div>
+      )}
       {/* Sidebar Desktop */}
       <aside className="w-64 hidden lg:block shrink-0 border-r border-slate-100">
         <SidebarContent />
@@ -928,23 +937,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   />
                   <p className="text-[8px] font-bold text-slate-400 ml-4 uppercase">Cada 4 aulas fecham um ciclo.</p>
                 </div>
-                <div className="flex gap-4">
-                  <Button type="submit" className="flex-1 py-6">Salvar Alterações</Button>
+                <div className="space-y-3 pt-2">
                   <Button 
-                    type="button" 
+                    type="button"
                     variant="outline" 
-                    onClick={async () => { 
-                      if(confirm('Excluir aluno permanentemente?')) { 
+                    className="w-full py-4 border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest"
+                    onClick={async () => {
+                      const newPass = prompt("Digite a nova senha temporária para o aluno (mínimo 6 caracteres):");
+                      if (newPass && newPass.length >= 6) {
                         setIsSyncing(true);
-                        await onDeleteStudent(editingStudent.id); 
+                        await onResetPassword(editingStudent.id, newPass);
                         setIsSyncing(false);
-                        setEditingStudent(null); 
-                      } 
+                      } else if (newPass) {
+                        alert("A senha deve ter pelo menos 6 caracteres.");
+                      }
                     }}
-                    className="px-6 border-red-100 text-red-600 hover:bg-red-50"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    Redefinir Senha do Aluno
                   </Button>
+                  <div className="flex gap-4">
+                    <Button type="submit" className="flex-1 py-6">Salvar Alterações</Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={async () => { 
+                        if(confirm('Excluir aluno permanentemente?')) { 
+                          setIsSyncing(true);
+                          await onDeleteStudent(editingStudent.id); 
+                          setIsSyncing(false);
+                          setEditingStudent(null); 
+                        } 
+                      }}
+                      className="px-6 border-red-100 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
+                  </div>
                 </div>
               </form>
             </Card>
@@ -982,6 +1010,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 setIsSyncing(false);
                 setIsAddingStudent(false); 
               }} className="space-y-6">
+                <div className="bg-blue-50 p-4 rounded-2xl space-y-1">
+                  <p className="text-[9px] font-black uppercase text-blue-600 tracking-widest">Informação Importante</p>
+                  <p className="text-[10px] font-bold text-blue-800 leading-relaxed">
+                    A senha definida aqui será a senha de acesso do aluno. 
+                    Certifique-se de anotá-la para enviar ao estudante.
+                  </p>
+                </div>
                 <Input label="Nome Completo" name="name" required placeholder="Ex: João Silva" />
                 <Input label="WhatsApp" name="whatsapp" placeholder="(00) 00000-0000" />
                 <Input label="E-mail" name="email" type="email" required placeholder="exemplo@email.com" />
