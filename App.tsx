@@ -386,7 +386,8 @@ const App: React.FC = () => {
               } else {
                 const text = await response.text();
                 console.error("Resposta não-JSON recebida:", text);
-                throw new Error(`O servidor retornou uma resposta inesperada (não-JSON). Isso pode significar que a rota da API não foi encontrada ou o servidor está fora do ar.\n\nResposta: ${text.substring(0, 100)}...`);
+                const isNetlify = window.location.hostname.includes('netlify') || window.location.hostname.includes('comotocarhinos.com.br');
+                throw new Error(`O servidor retornou uma resposta inesperada (não-JSON). ${isNetlify ? '\n\nDetectamos que você está usando um domínio customizado ou Netlify. Certifique-se de que as rotas de API estão sendo redirecionadas para o servidor correto.' : ''}\n\nResposta: ${text.substring(0, 100)}...`);
               }
 
               if (!response.ok) {

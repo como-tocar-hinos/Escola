@@ -3,6 +3,12 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/api/*"
+  to = "https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

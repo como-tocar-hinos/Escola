@@ -16,6 +16,7 @@
     "@tailwindcss/vite": "^4.0.0-alpha.25",
     "@types/express": "^5.0.6",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
     "firebase": "^12.11.0",
     "lucide-react": "^0.577.0",
@@ -28,6 +29,7 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
