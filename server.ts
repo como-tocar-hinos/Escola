@@ -24,6 +24,14 @@ async function startServer() {
     : null;
 
   // API routes
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      hasAdminKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY 
+    });
+  });
+
   app.post("/api/admin/create-user", async (req, res) => {
     const { email, password, name, instrument, level, role, whatsapp } = req.body;
     const trimmedEmail = email.trim().toLowerCase();
@@ -31,30 +39,42 @@ async function startServer() {
     console.log(`[ADMIN] Iniciando processo para: ${trimmedEmail}`);
     
     if (!supabaseAdmin) {
-      return res.status(500).json({ error: "Configuração incompleta: SUPABASE_SERVICE_ROLE_KEY ausente." });
+      console.error("[ADMIN] Erro: SUPABASE_SERVICE_ROLE_KEY não configurada no ambiente.");
+      return res.status(500).json({ 
+        error: "Configuração incompleta no servidor.",
+        details: "A variável SUPABASE_SERVICE_ROLE_KEY não foi encontrada. Certifique-se de adicioná-la nos 'Secrets' do AI Studio para o site publicado."
+      });
     }
 
     try {
       let userId: string;
 
       // 1. Tenta criar o usuário
+      console.log("[ADMIN] Tentando criar usuário no Supabase Auth...");
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: trimmedEmail,
         password: password,
-        email_confirm: true, // Pula a necessidade de clicar no link do e-mail
+        email_confirm: true,
         user_metadata: { name }
       });
 
       if (authError) {
+        console.warn("[ADMIN] Erro ao criar no Auth:", authError.message);
         // Se o erro for que o usuário já existe, vamos apenas atualizar a senha dele
         if (authError.message.includes("already registered") || authError.status === 422) {
           console.log("[ADMIN] Usuário já existe no Auth. Localizando ID...");
           
           const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-          if (listError) throw listError;
+          if (listError) {
+            console.error("[ADMIN] Erro ao listar usuários:", listError);
+            throw listError;
+          }
           
           const existingUser = (users as any[]).find(u => u.email?.toLowerCase() === trimmedEmail);
-          if (!existingUser) throw new Error("Usuário consta como registrado mas não foi encontrado na lista.");
+          if (!existingUser) {
+            console.error("[ADMIN] Usuário não encontrado na lista apesar do erro de duplicidade.");
+            throw new Error("Usuário consta como registrado mas não foi encontrado na lista.");
+          }
           
           userId = existingUser.id;
           console.log(`[ADMIN] Atualizando senha e confirmando e-mail para ID: ${userId}`);
@@ -64,16 +84,20 @@ async function startServer() {
             email_confirm: true
           });
           
-          if (updateError) throw updateError;
+          if (updateError) {
+            console.error("[ADMIN] Erro ao atualizar usuário existente:", updateError);
+            throw updateError;
+          }
         } else {
           throw authError;
         }
       } else {
         userId = authData.user.id;
-        console.log(`[ADMIN] Novo usuário criado com sucesso: ${userId}`);
+        console.log(`[ADMIN] Novo usuário criado com sucesso no Auth: ${userId}`);
       }
 
       // 2. Sincroniza o Perfil no Banco de Dados
+      console.log("[ADMIN] Sincronizando perfil na tabela 'profiles'...");
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .upsert([{
@@ -88,12 +112,19 @@ async function startServer() {
           whatsapp: whatsapp || ''
         }], { onConflict: 'id' });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("[ADMIN] Erro ao sincronizar perfil no banco:", profileError);
+        throw profileError;
+      }
 
+      console.log("[ADMIN] Processo concluído com sucesso para:", trimmedEmail);
       res.json({ success: true, userId });
     } catch (error: any) {
       console.error("[ADMIN] Erro crítico no processo:", error);
-      res.status(400).json({ error: error.message || "Erro ao processar usuário" });
+      res.status(400).json({ 
+        error: error.message || "Erro ao processar usuário",
+        details: error.details || error.hint || ""
+      });
     }
   });
 

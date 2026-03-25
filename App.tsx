@@ -379,10 +379,22 @@ const App: React.FC = () => {
                 })
               });
               
-              const result = await response.json();
+              const contentType = response.headers.get("content-type");
+              let result;
+              if (contentType && contentType.includes("application/json")) {
+                result = await response.json();
+              } else {
+                const text = await response.text();
+                console.error("Resposta não-JSON recebida:", text);
+                throw new Error(`O servidor retornou uma resposta inesperada (não-JSON). Isso pode significar que a rota da API não foi encontrada ou o servidor está fora do ar.\n\nResposta: ${text.substring(0, 100)}...`);
+              }
+
               if (!response.ok) {
                 console.error("Erro retornado pela API:", result);
-                throw new Error(result.error || 'Erro ao criar aluno');
+                const errorMessage = result.details 
+                  ? `${result.error}\n\nDetalhes: ${result.details}`
+                  : result.error || 'Erro ao criar aluno';
+                throw new Error(errorMessage);
               }
               
               console.log("Aluno criado com sucesso!");
