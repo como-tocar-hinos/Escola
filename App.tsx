@@ -69,7 +69,12 @@ const App: React.FC = () => {
       // 5. Buscar Materiais
       const { data: dbMaterials, error: mError } = await supabase.from('materials').select('*');
       if (mError) throw mError;
-      if (dbMaterials) setMaterials(dbMaterials);
+      if (dbMaterials) setMaterials(dbMaterials.map((m: any) => ({ 
+        ...m, 
+        fileUrl: m.file_url, 
+        studentIds: m.student_ids,
+        courseId: m.course_id 
+      })));
 
       // 6. Buscar Citações
       const { data: dbQuotes, error: qError } = await supabase.from('quotes').select('*');
@@ -597,6 +602,36 @@ const App: React.FC = () => {
             const { error } = await supabase.from('payments').delete().eq('id', id); 
             if (error) alert("Erro ao excluir pagamento: " + error.message);
             await fetchData(); 
+          }}
+          onAddMaterial={async (m) => {
+            const { error } = await supabase.from('materials').insert([{
+              id: m.id,
+              title: m.title,
+              file_url: m.fileUrl,
+              instrument: m.instrument,
+              level: m.level,
+              student_ids: m.studentIds,
+              course_id: m.courseId
+            }]);
+            if (error) alert("Erro ao adicionar material: " + error.message);
+            await fetchData();
+          }}
+          onUpdateMaterial={async (id, updates) => {
+            const { error } = await supabase.from('materials').update({
+              title: updates.title,
+              file_url: updates.fileUrl,
+              instrument: updates.instrument,
+              level: updates.level,
+              student_ids: updates.studentIds,
+              course_id: updates.courseId
+            }).eq('id', id);
+            if (error) alert("Erro ao atualizar material: " + error.message);
+            await fetchData();
+          }}
+          onDeleteMaterial={async (id) => {
+            const { error } = await supabase.from('materials').delete().eq('id', id);
+            if (error) alert("Erro ao excluir material: " + error.message);
+            await fetchData();
           }}
         />
       ) : (

@@ -21,7 +21,8 @@ import {
   Upload,
   Activity,
   Search,
-  MessageCircle
+  MessageCircle,
+  FileText
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -50,14 +51,18 @@ interface AdminDashboardProps {
   onDeleteSchedule: (id: string) => Promise<void>;
   onDeleteCourse: (id: string) => Promise<void>;
   onDeletePayment: (id: string) => Promise<void>;
+  onAddMaterial: (m: Material) => Promise<void>;
+  onUpdateMaterial: (id: string, updates: Partial<Material>) => Promise<void>;
+  onDeleteMaterial: (id: string) => Promise<void>;
 }
 
-type AdminView = 'dashboard' | 'students' | 'courses' | 'schedules' | 'payments';
+type AdminView = 'dashboard' | 'students' | 'courses' | 'schedules' | 'payments' | 'materials';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   user, onLogout, students, courses, schedules, payments, materials, 
   onAddStudent, onUpdateStudent, onAddSchedule, onUpdateSchedule, onAddCourse, onUpdateCourseContent, onUpdateCourseAccess, onAddPayment, onUpdatePayment,
-  onDeleteStudent, onResetPassword, onDeleteSchedule, onDeleteCourse, onDeletePayment
+  onDeleteStudent, onResetPassword, onDeleteSchedule, onDeleteCourse, onDeletePayment,
+  onAddMaterial, onUpdateMaterial, onDeleteMaterial
 }) => {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -69,6 +74,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [isAddingSchedule, setIsAddingSchedule] = useState(false);
   const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [isAddingMaterial, setIsAddingMaterial] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState('Olá! Passando para lembrar da importância de dedicar pelo menos 15 minutos hoje ao seu instrumento. A prática constante é o segredo do louvor perfeito! 🎹🎸');
   const [sentStudents, setSentStudents] = useState<string[]>([]);
@@ -85,8 +92,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    const annual = payments.filter(p => p.status === 'PAID' && new Date(p.dueDate).getFullYear() === currentYear).reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const monthly = payments.filter(p => { const d = new Date(p.dueDate); return p.status === 'PAID' && d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((acc, curr) => acc + Number(curr.amount), 0);
+                    const annual = payments.filter(p => p.status === 'PAID' && new Date(p.dueDate.replace(/-/g, '\/')).getFullYear() === currentYear).reduce((acc, curr) => acc + Number(curr.amount), 0);
+                    const monthly = payments.filter(p => { const d = new Date(p.dueDate.replace(/-/g, '\/')); return p.status === 'PAID' && d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((acc, curr) => acc + Number(curr.amount), 0);
     return { annualTotal: annual, monthlyTotal: monthly };
   }, [payments]);
 
@@ -176,6 +183,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           active={activeView === 'payments'} 
           onClick={() => { setActiveView('payments'); setIsSidebarOpen(false); }} 
           icon={<CreditCard className="w-5 h-5" />} label="Financeiro" 
+        />
+        <SidebarLink 
+          active={activeView === 'materials'} 
+          onClick={() => { setActiveView('materials'); setIsSidebarOpen(false); }} 
+          icon={<FileText className="w-5 h-5" />} label="Materiais" 
         />
         <SidebarLink 
           active={isSendingBroadcast} 
@@ -273,11 +285,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <Card className="p-8 border-l-4 border-red-600 border-slate-100">
                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Aulas este Mês</p>
                   <h3 className="text-4xl font-black tracking-tighter text-slate-900">
-                    {schedules.filter(s => {
-                      const d = new Date(s.date);
-                      const now = new Date();
-                      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-                    }).length}
+                      {schedules.filter(s => {
+                        const d = new Date(s.date.replace(/-/g, '\/'));
+                        const now = new Date();
+                        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                      }).length}
                   </h3>
                 </Card>
                 <Card className="p-8 border-l-4 border-slate-900 border-slate-100">
@@ -317,7 +329,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="space-y-4">
                     {schedules
                       .filter(s => s.status === 'PENDING')
-                      .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime())
+                      .sort((a, b) => new Date(`${a.date.replace(/-/g, '\/')}T${a.time || '00:00:00'}`).getTime() - new Date(`${b.date.replace(/-/g, '\/')}T${b.time || '00:00:00'}`).getTime())
                       .slice(0, 5)
                       .map(sc => (
                       <div key={sc.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -327,7 +339,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </div>
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-tight">{students.find(s => s.id === sc.studentId)?.name}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase">{sc.time} • {new Date(sc.date).toLocaleDateString('pt-BR')}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase">{sc.time} • {new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString('pt-BR')}</p>
                           </div>
                         </div>
                         <Badge variant="warning" className="text-[8px]">Pendente</Badge>
@@ -461,12 +473,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {(() => {
                   const pendingSchedules = [...schedules]
                     .filter(s => s.status === 'PENDING')
-                    .sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
+                    .sort((a, b) => new Date(`${a.date.replace(/-/g, '\/')}T${a.time || '00:00:00'}`).getTime() - new Date(`${b.date.replace(/-/g, '\/')}T${b.time || '00:00:00'}`).getTime());
                   
                   // Group by week
                   const weeks: { [key: string]: ScheduledClass[] } = {};
                   pendingSchedules.forEach(s => {
-                    const date = new Date(s.date);
+                    const date = new Date(s.date.replace(/-/g, '\/'));
                     const day = date.getDay();
                     const diff = date.getDate() - day + (day === 0 ? -6 : 1);
                     const startOfWeek = new Date(date.setDate(diff));
@@ -497,10 +509,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </Badge>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {weeks[week].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(sc => {
+                        {weeks[week].sort((a, b) => new Date(a.date.replace(/-/g, '\/')).getTime() - new Date(b.date.replace(/-/g, '\/')).getTime()).map(sc => {
                           const student = students.find(s => s.id === sc.studentId);
                           const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-                          const dayOfWeek = days[new Date(sc.date).getDay()];
+                          const dayOfWeek = days[new Date(sc.date.replace(/-/g, '\/')).getDay()];
                           
                           return (
                             <Card key={sc.id} className="p-6 border-slate-100 hover:border-red-600 transition-all group relative overflow-hidden">
@@ -601,7 +613,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               const student = students.find(st => st.id === s.studentId);
                               return (student?.name || '').toLowerCase().includes(scheduleSearchTerm.toLowerCase());
                             })
-                            .sort((a, b) => new Date(`${b.date}T${b.time}`).getTime() - new Date(`${a.date}T${a.time}`).getTime());
+                            .sort((a, b) => new Date(`${b.date.replace(/-/g, '\/')}T${b.time || '00:00:00'}`).getTime() - new Date(`${a.date.replace(/-/g, '\/')}T${a.time || '00:00:00'}`).getTime());
 
                           if (filtered.length === 0) {
                             return (
@@ -616,7 +628,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           // Group by month
                           const groups: { [key: string]: ScheduledClass[] } = {};
                           filtered.forEach(s => {
-                            const date = new Date(s.date);
+                            const date = new Date(s.date.replace(/-/g, '\/'));
                             const monthKey = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
                             if (!groups[monthKey]) groups[monthKey] = [];
                             groups[monthKey].push(s);
@@ -643,7 +655,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     </div>
                                   </td>
                                   <td className="p-6 md:p-8">
-                                    <span className="text-xs font-black uppercase">{new Date(sc.date).toLocaleDateString('pt-BR')}</span>
+                                    <span className="text-xs font-black uppercase">{new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString('pt-BR')}</span>
                                   </td>
                                   <td className="p-6 md:p-8">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sc.time}</span>
@@ -728,7 +740,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
-                       {payments.sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()).map(p => (
+                       {payments.sort((a, b) => new Date(b.dueDate.replace(/-/g, '\/')).getTime() - new Date(a.dueDate.replace(/-/g, '\/')).getTime()).map(p => (
                          <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                            <td className="p-6 md:p-8">
                              <div className="flex items-center gap-3">
@@ -742,7 +754,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                              <span className="text-sm font-black text-slate-900">R$ {p.amount.toFixed(2)}</span>
                            </td>
                            <td className="p-6 md:p-8">
-                             <span className="text-xs font-bold text-slate-400 uppercase">{new Date(p.dueDate).toLocaleDateString('pt-BR')}</span>
+                             <span className="text-xs font-bold text-slate-400 uppercase">{new Date(p.dueDate.replace(/-/g, '\/')).toLocaleDateString('pt-BR')}</span>
                            </td>
                            <td className="p-6 md:p-8">
                              <Badge variant={p.status === 'PAID' ? 'success' : 'warning'}>
@@ -774,6 +786,82 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      </tbody>
                    </table>
                  </div>
+              </Card>
+            </div>
+          )}
+
+          {activeView === 'materials' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <h2 className="text-2xl font-black uppercase tracking-tighter">Materiais de Estudo</h2>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Gestão de Arquivos e PDFs</p>
+                </div>
+                <Button onClick={() => setIsAddingMaterial(true)} className="px-6">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Material
+                </Button>
+              </div>
+
+              <Card className="overflow-hidden border-none shadow-xl">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-left min-w-[700px]">
+                    <thead className="bg-slate-950 text-white">
+                      <tr>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest">Título</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest">Instr. / Nível</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest">Curso Relacionado</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest text-center">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {materials.map(m => (
+                        <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-6 md:p-8">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-5 h-5 text-red-600" />
+                              <span className="text-xs font-black uppercase tracking-tight">{m.title}</span>
+                            </div>
+                          </td>
+                          <td className="p-6 md:p-8">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{m.instrument} • {m.level}</span>
+                          </td>
+                          <td className="p-6 md:p-8">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              {courses.find(c => c.id === m.courseId)?.title || 'Geral (Todos do Nível)'}
+                            </span>
+                          </td>
+                          <td className="p-6 md:p-8 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingMaterial(m)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => { if(confirm('Excluir material?')) onDeleteMaterial(m.id); }}
+                                className="text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {materials.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="p-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                            Nenhum material cadastrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </Card>
             </div>
           )}
@@ -1243,6 +1331,121 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </p>
                 </div>
               </div>
+            </Card>
+          </div>
+        )}
+
+        {isAddingMaterial && (
+          <div className="fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4 backdrop-blur-md">
+            <Card className="bg-white w-full max-w-md p-8 md:p-10 space-y-6 md:space-y-10 animate-in zoom-in duration-300 shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar relative rounded-[3rem]">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter">Novo Material</h3>
+                <button type="button" onClick={() => setIsAddingMaterial(false)} className="text-3xl md:text-4xl font-black hover:text-red-600 transition-colors">&times;</button>
+              </div>
+              <form onSubmit={async (e) => { 
+                e.preventDefault(); 
+                const formData = new FormData(e.currentTarget);
+                const newMaterial: Material = {
+                  id: crypto.randomUUID(),
+                  title: formData.get('title') as string,
+                  fileUrl: formData.get('fileUrl') as string,
+                  instrument: formData.get('instrument') as Instrument,
+                  level: formData.get('level') as Level,
+                  courseId: formData.get('courseId') as string || undefined
+                };
+                setIsSyncing(true);
+                await onAddMaterial(newMaterial); 
+                setIsSyncing(false);
+                setIsAddingMaterial(false); 
+              }} className="space-y-6">
+                <Input label="Título do Material" name="title" required placeholder="Ex: PDF de Escalas Maiores" />
+                <Input label="URL do Arquivo (PDF/Link)" name="fileUrl" required placeholder="https://..." />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Instr.</label>
+                    <select name="instrument" className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                      <option value="Violão">Violão</option>
+                      <option value="Piano">Piano</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Nível</label>
+                    <select name="level" className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                      <option value="NZ">NZ</option><option value="N1">N1</option><option value="N2">N2</option><option value="N3">N3</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Curso Relacionado (Opcional)</label>
+                  <select name="courseId" className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                    <option value="">Geral (Todos do Nível)</option>
+                    {courses.map(c => (
+                      <option key={c.id} value={c.id}>{c.title} ({c.instrument})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button type="submit" className="w-full py-6 mt-4">Criar Material</Button>
+              </form>
+            </Card>
+          </div>
+        )}
+
+        {editingMaterial && (
+          <div className="fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4 backdrop-blur-md">
+            <Card className="bg-white w-full max-w-md p-8 md:p-10 space-y-6 md:space-y-10 animate-in zoom-in duration-300 shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar relative rounded-[3rem]">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter">Editar Material</h3>
+                <button type="button" onClick={() => setEditingMaterial(null)} className="text-3xl md:text-4xl font-black hover:text-red-600 transition-colors">&times;</button>
+              </div>
+              <form onSubmit={async (e) => { 
+                e.preventDefault(); 
+                const formData = new FormData(e.currentTarget);
+                const updates: Partial<Material> = {
+                  title: formData.get('title') as string,
+                  fileUrl: formData.get('fileUrl') as string,
+                  instrument: formData.get('instrument') as Instrument,
+                  level: formData.get('level') as Level,
+                  courseId: formData.get('courseId') as string || undefined
+                };
+                setIsSyncing(true);
+                await onUpdateMaterial(editingMaterial.id, updates); 
+                setIsSyncing(false);
+                setEditingMaterial(null); 
+              }} className="space-y-6">
+                <Input label="Título do Material" name="title" required defaultValue={editingMaterial.title} />
+                <Input label="URL do Arquivo (PDF/Link)" name="fileUrl" required defaultValue={editingMaterial.fileUrl} />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Instr.</label>
+                    <select name="instrument" defaultValue={editingMaterial.instrument} className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                      <option value="Violão">Violão</option>
+                      <option value="Piano">Piano</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Nível</label>
+                    <select name="level" defaultValue={editingMaterial.level} className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                      <option value="NZ">NZ</option><option value="N1">N1</option><option value="N2">N2</option><option value="N3">N3</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Curso Relacionado (Opcional)</label>
+                  <select name="courseId" defaultValue={editingMaterial.courseId || ""} className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                    <option value="">Geral (Todos do Nível)</option>
+                    {courses.map(c => (
+                      <option key={c.id} value={c.id}>{c.title} ({c.instrument})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button type="submit" className="w-full py-6 mt-4">Salvar Alterações</Button>
+              </form>
             </Card>
           </div>
         )}

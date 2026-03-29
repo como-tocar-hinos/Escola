@@ -68,7 +68,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
   
   const mySchedules = (schedules || [])
     .filter(s => myProfileIds.includes(s.studentId))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => new Date(b.date.replace(/-/g, '\/')).getTime() - new Date(a.date.replace(/-/g, '\/')).getTime());
   
   const myPayments = (payments || []).filter(p => myProfileIds.includes(p.studentId));
   
@@ -146,7 +146,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
         <div className="max-w-7xl mx-auto px-4 flex gap-8">
           <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<Activity className="w-4 h-4" />} label="Geral" />
           <TabButton active={activeTab === 'courses'} onClick={() => setActiveTab('courses')} icon={<BookOpen className="w-4 h-4" />} label="Cursos" />
-          <TabButton active={activeTab === 'practice'} onClick={() => setActiveTab('practice')} icon={<Music className="w-4 h-4" />} label="Hinário Cifrado" />
+          <TabButton active={activeTab === 'practice'} onClick={() => setActiveTab('practice')} icon={<Music className="w-4 h-4" />} label="Página de Estudos" />
           <TabButton active={activeTab === 'cronograma'} onClick={() => setActiveTab('cronograma')} icon={<FileText className="w-4 h-4" />} label="Cronograma" />
           <TabButton active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} icon={<CreditCard className="w-4 h-4" />} label="Financeiro" />
         </div>
@@ -175,8 +175,8 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                         <Card key={sc.id} className="flex flex-col md:flex-row justify-between items-center gap-8 group border-slate-100">
                           <div className="flex items-center gap-8 w-full md:w-auto">
                             <div className="bg-slate-950 text-white w-20 h-20 rounded-3xl flex flex-col items-center justify-center font-black shadow-xl shrink-0">
-                              <span className="text-[10px] uppercase opacity-50">{new Date(sc.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
-                              <span className="text-3xl leading-none">{new Date(sc.date).getDate()}</span>
+                              <span className="text-[10px] uppercase opacity-50">{new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+                              <span className="text-3xl leading-none">{new Date(sc.date.replace(/-/g, '\/')).getDate()}</span>
                             </div>
                             <div>
                               <h4 className="text-2xl font-black uppercase tracking-tighter group-hover:text-red-600 transition-colors leading-tight">{sc.title || 'Aula Presencial'}</h4>
@@ -246,7 +246,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                      {mySchedules.filter(s => s.status === 'COMPLETED').map(sc => (
                        <div key={sc.id} className={`border-l-4 ${sc.title?.includes('[FALTA]') ? 'border-red-400' : 'border-red-600'} pl-6 py-4 bg-slate-50 rounded-r-3xl flex justify-between items-center group hover:bg-slate-100 transition-all ${sc.title?.includes('[FALTA]') ? 'opacity-70' : ''}`}>
                           <div>
-                            <p className="text-[10px] font-black uppercase text-slate-400">{new Date(sc.date).toLocaleDateString()}</p>
+                            <p className="text-[10px] font-black uppercase text-slate-400">{new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString()}</p>
                             <p className="text-sm font-black uppercase tracking-tighter group-hover:text-red-600 truncate max-w-[150px]">{sc.title?.replace('[FALTA]', '').trim() || 'Aula Concluída'}</p>
                             {sc.title?.includes('[FALTA]') && <Badge variant="error" className="mt-1">Falta</Badge>}
                           </div>
@@ -380,9 +380,9 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
               className="w-full h-[800px] rounded-[3rem] overflow-hidden border border-slate-200 shadow-2xl"
             >
               <iframe 
-                src="https://hinarioadventistacifrado.com.br" 
+                src="https://paginadeestudos.netlify.app" 
                 className="w-full h-full border-none"
-                title="Hinário Cifrado"
+                title="Página de Estudos"
               />
             </motion.div>
           )}
@@ -416,7 +416,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                       {sc.title || 'Aula de Música'}
                     </h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      {new Date(sc.date).toLocaleDateString()} às {sc.time}
+                      {new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString()} às {sc.time}
                     </p>
                   </Card>
                 ))}
@@ -456,8 +456,8 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                         <CreditCard className="w-5 h-5 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="font-black text-sm uppercase">Mensalidade {new Date(p.dueDate).toLocaleDateString('pt-BR', { month: 'long' })}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Vencimento: {new Date(p.dueDate).toLocaleDateString()}</p>
+                        <p className="font-black text-sm uppercase">Mensalidade {new Date(p.dueDate.replace(/-/g, '\/')).toLocaleDateString('pt-BR', { month: 'long' })}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Vencimento: {new Date(p.dueDate.replace(/-/g, '\/')).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="text-right">

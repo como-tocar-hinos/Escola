@@ -86,6 +86,7 @@ export interface Material {
   instrument: Instrument;
   level: Level;
   studentIds?: string[];
+  courseId?: string;
 }
 
 export interface Payment {

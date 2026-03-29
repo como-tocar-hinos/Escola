@@ -82,7 +82,10 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
   }
 
   const videoUrl = getYouTubeEmbedUrl(videoType === 'arranjo' ? selectedLesson.videoArranjoUrl : selectedLesson.videoAoVivoUrl);
-  const courseMaterials = materials.filter(m => m.instrument === course.instrument && m.level === course.level);
+  const courseMaterials = materials.filter(m => 
+    m.courseId === course.id || 
+    (!m.courseId && m.instrument === course.instrument && m.level === course.level)
+  );
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-slate-50">
