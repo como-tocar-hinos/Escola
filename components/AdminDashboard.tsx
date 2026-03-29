@@ -990,6 +990,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onChange={e => setEditingStudent({...editingStudent, name: e.target.value})} 
                 />
                 <Input 
+                  label="E-mail"
+                  type="email"
+                  value={editingStudent.email || ''} 
+                  onChange={e => setEditingStudent({...editingStudent, email: e.target.value})} 
+                  placeholder="exemplo@email.com"
+                />
+                <Input 
                   label="WhatsApp"
                   value={editingStudent.whatsapp || ''} 
                   onChange={e => setEditingStudent({...editingStudent, whatsapp: e.target.value})} 

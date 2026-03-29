@@ -427,6 +427,7 @@ const App: React.FC = () => {
           onUpdateStudent={async (s) => { 
             const { error } = await supabase.from('profiles').update({ 
               name: s.name, 
+              email: s.email,
               instrument: s.instrument, 
               level: s.level, 
               avatar: s.avatar, 
