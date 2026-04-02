@@ -1,11 +1,10 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { User, Course, ScheduledClass, Payment, Material, Instrument, Level, Module, Lesson } from '../types';
+import { User, Course, ScheduledClass, Payment, Instrument, Level, Module, Lesson } from '../types';
 import { DEFAULT_AVATARS } from '../constants';
 import { parseLocalDate, formatDisplayDate, getDayOfWeek, getDayOfMonth, getMonthName, getShortMonthName } from '../utils';
 import { generateLessonDescription } from '../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
-import { supabase } from '../services/supabase';
 import { 
   Users, 
   BookOpen, 

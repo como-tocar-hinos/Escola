@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, UserRole, Course, ScheduledClass, Payment, Material, Instrument, Level, LessonDB, Quote } from './types';
-import { MOCK_ADMIN, MOCK_STUDENTS, MOCK_COURSES, MOCK_SCHEDULES, MOCK_PAYMENTS, MOCK_MATERIALS, DEFAULT_AVATARS } from './constants';
+import { User, UserRole, Course, ScheduledClass, Payment, Instrument, Level, LessonDB, Quote } from './types';
+import { MOCK_ADMIN, MOCK_STUDENTS, MOCK_COURSES, MOCK_SCHEDULES, MOCK_PAYMENTS, DEFAULT_AVATARS } from './constants';
 import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
 import Login from './components/Login';
@@ -16,7 +16,6 @@ const App: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [schedules, setSchedules] = useState<ScheduledClass[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
 
   const fetchData = useCallback(async () => {
@@ -66,16 +65,6 @@ const App: React.FC = () => {
       if (payError) throw payError;
       if (dbPayments) setPayments(dbPayments.map((p: any) => ({ ...p, studentId: p.student_id, dueDate: p.due_date, status: (p.status || 'PENDING').toUpperCase() })));
       
-      // 5. Buscar Materiais
-      const { data: dbMaterials, error: mError } = await supabase.from('materials').select('*');
-      if (mError) throw mError;
-      if (dbMaterials) setMaterials(dbMaterials.map((m: any) => ({ 
-        ...m, 
-        fileUrl: m.file_url, 
-        studentIds: m.student_ids,
-        courseId: m.course_id 
-      })));
-
       // 6. Buscar Citações
       const { data: dbQuotes, error: qError } = await supabase.from('quotes').select('*');
       if (!qError && dbQuotes) setQuotes(dbQuotes);
@@ -89,7 +78,6 @@ const App: React.FC = () => {
       setCourses(MOCK_COURSES);
       setSchedules(MOCK_SCHEDULES);
       setPayments(MOCK_PAYMENTS);
-      setMaterials(MOCK_MATERIALS);
     }
   }, []);
 
@@ -380,7 +368,7 @@ const App: React.FC = () => {
         <AdminDashboard 
           user={user} onLogout={handleLogout}
           students={students} courses={courses} schedules={schedules}
-          payments={payments} materials={materials}
+          payments={payments}
           onAddStudent={async (s, password) => { 
             try {
               console.log("Iniciando criação de aluno via API...");
@@ -609,43 +597,13 @@ const App: React.FC = () => {
             if (error) alert("Erro ao excluir pagamento: " + error.message);
             await fetchData(); 
           }}
-          onAddMaterial={async (m) => {
-            const { error } = await supabase.from('materials').insert([{
-              id: m.id,
-              title: m.title,
-              file_url: m.fileUrl,
-              instrument: m.instrument,
-              level: m.level,
-              student_ids: m.studentIds,
-              course_id: m.courseId
-            }]);
-            if (error) alert("Erro ao adicionar material: " + error.message);
-            await fetchData();
-          }}
-          onUpdateMaterial={async (id, updates) => {
-            const { error } = await supabase.from('materials').update({
-              title: updates.title,
-              file_url: updates.fileUrl,
-              instrument: updates.instrument,
-              level: updates.level,
-              student_ids: updates.studentIds,
-              course_id: updates.courseId
-            }).eq('id', id);
-            if (error) alert("Erro ao atualizar material: " + error.message);
-            await fetchData();
-          }}
-          onDeleteMaterial={async (id) => {
-            const { error } = await supabase.from('materials').delete().eq('id', id);
-            if (error) alert("Erro ao excluir material: " + error.message);
-            await fetchData();
-          }}
         />
       ) : (
         <StudentDashboard 
           user={user} onLogout={handleLogout}
           students={students}
           courses={courses} schedules={schedules}
-          materials={materials} payments={payments}
+          payments={payments}
           quotes={quotes}
           onUpdateProfile={async (u) => { await supabase.from('profiles').update({ name: u.name, whatsapp: u.whatsapp, avatar: u.avatar }).eq('id', u.id); setUser(u); await fetchData(); }}
         />

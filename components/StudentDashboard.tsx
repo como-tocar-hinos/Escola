@@ -1,10 +1,8 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Course, ScheduledClass, Material, Payment, LessonDB, Quote } from '../types';
+import { User, Course, ScheduledClass, Payment, LessonDB, Quote } from '../types';
 import { parseLocalDate, formatDisplayDate, getMonthName, getShortMonthName, getDayOfMonth } from '../utils';
 import CoursePlayer from './CoursePlayer';
-import Metronome from './Metronome';
-import Tuner from './Tuner';
 import { DEFAULT_AVATARS } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -33,16 +31,15 @@ interface StudentDashboardProps {
   onLogout: () => void;
   courses: Course[];
   schedules: ScheduledClass[];
-  materials: Material[];
   payments: Payment[];
   quotes?: Quote[];
   onUpdateProfile: (user: User) => Promise<void>;
 }
 
-type Tab = 'overview' | 'courses' | 'practice' | 'materials' | 'cronograma' | 'payments';
+type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
 
   const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
-    user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], quotes = [], onUpdateProfile
+    user, students = [], onLogout, courses = [], schedules = [], payments = [], quotes = [], onUpdateProfile
   }) => {
     console.log("StudentDashboard Render:", { userEmail: user.email, userRole: user.role, coursesCount: courses.length });
     const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -75,10 +72,6 @@ type Tab = 'overview' | 'courses' | 'practice' | 'materials' | 'cronograma' | 'p
   
   const myPayments = (payments || []).filter(p => myProfileIds.includes(p.studentId));
   
-  const myMaterials = (materials || []).filter(m => 
-    !m.studentIds || m.studentIds.length === 0 || m.studentIds.some(id => myProfileIds.includes(id))
-  );
-  
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -105,12 +98,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'materials' | 'cronograma' | 'p
 
   if (viewingCourse) {
     return (
-      <CoursePlayer 
-        course={viewingCourse} 
-        onBack={() => setViewingCourse(null)} 
-        materials={materials} 
-        user={user}
-      />
+      <CoursePlayer course={viewingCourse} onBack={() => setViewingCourse(null)} />
     );
   }
 
@@ -154,7 +142,6 @@ type Tab = 'overview' | 'courses' | 'practice' | 'materials' | 'cronograma' | 'p
         <div className="max-w-7xl mx-auto px-4 flex gap-8">
           <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<Activity className="w-4 h-4" />} label="Geral" />
           <TabButton active={activeTab === 'courses'} onClick={() => setActiveTab('courses')} icon={<BookOpen className="w-4 h-4" />} label="Cursos" />
-          <TabButton active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={<FileText className="w-4 h-4" />} label="Materiais" />
           <TabButton active={activeTab === 'practice'} onClick={() => setActiveTab('practice')} icon={<Music className="w-4 h-4" />} label="Página de Estudos" />
           <TabButton active={activeTab === 'cronograma'} onClick={() => setActiveTab('cronograma')} icon={<FileText className="w-4 h-4" />} label="Cronograma" />
           <TabButton active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} icon={<CreditCard className="w-4 h-4" />} label="Financeiro" />
@@ -315,12 +302,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'materials' | 'cronograma' | 'p
                 <div key={course.id} className="space-y-12">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 bg-slate-50 p-10 rounded-[3rem] border border-slate-100">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Badge variant="error">{course.instrument}</Badge>
-                        <Badge variant="outline" className="border-slate-200">{course.level}</Badge>
-                      </div>
                       <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none mb-6">{course.title}</h2>
-                      <p className="text-slate-500 text-sm md:text-base font-medium max-w-2xl">{course.description}</p>
                     </div>
                     <Button 
                       variant="primary"
@@ -347,62 +329,13 @@ type Tab = 'overview' | 'courses' | 'practice' | 'materials' | 'cronograma' | 'p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              className="w-full h-[800px] rounded-[3rem] overflow-hidden border border-slate-200 shadow-2xl"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Metronome />
-                <Tuner />
-              </div>
-              
-              <div className="w-full h-[600px] rounded-[3rem] overflow-hidden border border-slate-200 shadow-2xl">
-                <iframe 
-                  src="https://paginadeestudos.netlify.app" 
-                  className="w-full h-full border-none"
-                  title="Página de Estudos"
-                />
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'materials' && (
-            <motion.div 
-              key="materials"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
-            >
-              <div className="flex items-center gap-4 mb-8">
-                <h3 className="text-2xl font-black uppercase tracking-tighter">Materiais de Estudo</h3>
-                <div className="h-px flex-1 bg-slate-100"></div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myMaterials.map(material => (
-                  <Card key={material.id} className="p-6 border-slate-100 hover:border-red-600 transition-all group">
-                    <div className="bg-slate-100 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors">
-                      <FileText className="w-6 h-6 text-slate-400 group-hover:text-red-600" />
-                    </div>
-                    <h4 className="font-black uppercase tracking-tighter text-lg mb-2">{material.title}</h4>
-                    <div className="flex items-center gap-2 mb-6">
-                      <Badge variant="outline" className="text-[9px]">{material.instrument}</Badge>
-                      <Badge variant="outline" className="text-[9px]">{material.level}</Badge>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      className="w-full py-4 text-[10px] font-black uppercase tracking-widest"
-                      onClick={() => window.open(material.fileUrl, '_blank')}
-                    >
-                      Abrir Material
-                    </Button>
-                  </Card>
-                ))}
-                {myMaterials.length === 0 && (
-                  <div className="col-span-full text-center py-20 bg-slate-50 rounded-4xl border-2 border-dashed border-slate-200">
-                    <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em]">Nenhum material disponível para você.</p>
-                  </div>
-                )}
-              </div>
+              <iframe 
+                src="https://paginadeestudos.netlify.app" 
+                className="w-full h-full border-none"
+                title="Página de Estudos"
+              />
             </motion.div>
           )}
 

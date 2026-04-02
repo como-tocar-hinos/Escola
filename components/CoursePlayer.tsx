@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Course, Lesson, LessonDB, User } from '../types';
+import { Course, Lesson, LessonDB } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, 
@@ -21,11 +21,11 @@ import { Badge } from './ui/Badge';
 interface CoursePlayerProps {
   course: Course;
   onBack: () => void;
-  user: User;
 }
 
-const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, user }) => {
+const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const firstLesson = useMemo(() => {
     if (course.modules && course.modules.length > 0) {
       for (const module of course.modules) {
@@ -104,7 +104,7 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, user }) => 
     );
   }
 
-  const videoUrl = getYouTubeEmbedUrl(selectedLesson.videoArranjoUrl);
+  const videoUrl = getYouTubeEmbedUrl(selectedLesson.videoArranjoUrl || selectedLesson.videoAoVivoUrl);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-slate-50">
@@ -143,7 +143,7 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, user }) => 
                     <div className="bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black shadow-lg shadow-red-600/20">
                       {mIdx + 1}
                     </div>
-                    <h4 className="font-black uppercase tracking-tighter text-sm text-slate-900">{module.title}</h4>
+                    <h4 className="font-black uppercase tracking-tighter text-base text-slate-900">{module.title}</h4>
                   </div>
                   {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </button>
@@ -294,15 +294,5 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, user }) => 
     </div>
   );
 };
-
-const ToolSection: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
-  <div className="space-y-4">
-    <div className="flex items-center gap-3 px-4">
-      <div className="text-red-600">{icon}</div>
-      <h3 className="text-sm font-black uppercase tracking-tighter">{title}</h3>
-    </div>
-    {children}
-  </div>
-);
 
 export default CoursePlayer;
