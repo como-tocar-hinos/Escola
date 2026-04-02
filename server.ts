@@ -17,7 +17,7 @@ async function startServer() {
   app.use(express.json());
 
   // Initialize Supabase Admin Client
-  const supabaseUrl = 'https://tvjyskpiqzmujwfjhtcg.supabase.co';
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://tvjyskpiqzmujwfjhtcg.supabase.co';
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   const supabaseAdmin = supabaseServiceRoleKey 

@@ -7,7 +7,7 @@ export const generateLessonDescription = async (title: string, instrument: strin
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere uma descrição curta e inspiradora para uma aula de música com o título "${title}" para o instrumento ${instrument} no nível ${level}. Foque em como isso ajuda a tocar hinos de forma solene.`,
+      contents: `Gere uma descrição curta e inspiradora para uma aula de música com o título "${title}" para o instrumento ${instrument} no nível ${level}. Foque em como isso ajuda a tocar hinos de forma solene. Responda em Português.`,
     });
     return response.text || "Descrição não disponível.";
   } catch (error) {
@@ -21,7 +21,7 @@ export const suggestExercises = async (level: string, instrument: string) => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Sugira 3 exercícios técnicos fundamentais para um aluno de ${instrument} que está no nível ${level} e deseja tocar hinos religiosos. Retorne apenas em tópicos.`,
+      contents: `Sugira 3 exercícios técnicos fundamentais para um aluno de ${instrument} que está no nível ${level} e deseja tocar hinos religiosos. Retorne apenas em tópicos. Responda em Português.`,
     });
     return response.text || "Sugestões não disponíveis.";
   } catch (error) {

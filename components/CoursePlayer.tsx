@@ -1,8 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Course, Lesson, Material, LessonDB } from '../types';
-import Metronome from './Metronome';
-import Tuner from './Tuner';
+import { Course, Lesson, LessonDB, User } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, 
@@ -12,7 +10,9 @@ import {
   Layout, 
   Download,
   ArrowLeft,
-  Clock
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -21,13 +21,11 @@ import { Badge } from './ui/Badge';
 interface CoursePlayerProps {
   course: Course;
   onBack: () => void;
-  materials: Material[];
+  user: User;
 }
 
-const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }) => {
+const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, user }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'aulas' | 'materiais'>('aulas');
-
   const firstLesson = useMemo(() => {
     if (course.modules && course.modules.length > 0) {
       for (const module of course.modules) {
@@ -40,13 +38,24 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
   }, [course]);
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(firstLesson);
-  const [videoType, setVideoType] = useState<'arranjo' | 'aovivo'>('arranjo');
+  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (firstLesson && !selectedLesson) {
       setSelectedLesson(firstLesson);
+      // Expand the first module by default
+      if (course.modules && course.modules.length > 0) {
+        setExpandedModules({ [course.modules[0].id || '0']: true });
+      }
     }
-  }, [firstLesson, selectedLesson]);
+  }, [firstLesson, selectedLesson, course.modules]);
+
+  const toggleModule = (moduleId: string) => {
+    setExpandedModules(prev => ({
+      ...prev,
+      [moduleId]: !prev[moduleId]
+    }));
+  };
 
   useEffect(() => {
     if (firstLesson) {
@@ -56,16 +65,30 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
 
   const getYouTubeEmbedUrl = (url: string) => {
     if (!url) return '';
+    
+    // Handle already embed URLs
     if (url.includes('youtube.com/embed/')) return url;
-    let videoId = '';
-    if (url.includes('youtu.be/')) {
-      videoId = url.split('youtu.be/')[1].split(/[?#]/)[0];
-    } else if (url.includes('v=')) {
-      videoId = url.split('v=')[1].split('&')[0];
-    } else {
-      videoId = url; // Assume que é o ID direto
+
+    // Comprehensive regex for YouTube URLs
+    // Handles: watch?v=, youtu.be/, v/, vi/, u/w/embed/, shorts/, live/
+    const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/|live\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
+    const match = url.match(regExp);
+
+    if (match && match[1]) {
+      const videoId = match[1];
+      // Ensure videoId is the correct length (usually 11 characters)
+      if (videoId.length === 11) {
+        return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
+      }
     }
-    return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
+    
+    // If it's just an 11-character string, assume it's the ID
+    const trimmedUrl = url.trim();
+    if (trimmedUrl.length === 11 && !trimmedUrl.includes('/') && !trimmedUrl.includes('.')) {
+      return `https://www.youtube.com/embed/${trimmedUrl}?rel=0&modestbranding=1`;
+    }
+
+    return '';
   };
 
   if (!selectedLesson) {
@@ -81,11 +104,7 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
     );
   }
 
-  const videoUrl = getYouTubeEmbedUrl(videoType === 'arranjo' ? selectedLesson.videoArranjoUrl : selectedLesson.videoAoVivoUrl);
-  const courseMaterials = materials.filter(m => 
-    m.courseId === course.id || 
-    (!m.courseId && m.instrument === course.instrument && m.level === course.level)
-  );
+  const videoUrl = getYouTubeEmbedUrl(selectedLesson.videoArranjoUrl);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-slate-50">
@@ -106,83 +125,65 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
           </div>
           <h2 className="font-black text-lg uppercase tracking-tight leading-tight">{course.instrument} {course.level}</h2>
         </div>
-
-        <div className="flex bg-slate-200 p-1 rounded-xl mb-8">
-          <button 
-            onClick={() => setActiveTab('aulas')} 
-            className={`flex-1 py-2.5 text-[9px] font-black uppercase rounded-lg transition-all ${activeTab === 'aulas' ? 'bg-white shadow-sm text-red-600' : 'text-slate-500'}`}
-          >
-            AULAS
-          </button>
-          <button 
-            onClick={() => setActiveTab('materiais')} 
-            className={`flex-1 py-2.5 text-[9px] font-black uppercase rounded-lg transition-all ${activeTab === 'materiais' ? 'bg-white shadow-sm text-red-600' : 'text-slate-500'}`}
-          >
-            ARQUIVOS
-          </button>
-        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-8">
-        {activeTab === 'aulas' ? (
-          <>
-            {course.modules?.map((module, mIdx) => (
-              <div key={module.id || mIdx} className="mb-6">
-                <div className="px-4 py-2 text-[8px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2 border-b border-slate-200">
-                  {module.title}
-                </div>
-                <div className="space-y-1">
-                  {module.lessons?.map((lesson, lIdx) => (
-                    <button
-                      key={lesson.id || lIdx}
-                      onClick={() => { setSelectedLesson(lesson); setIsSidebarOpen(false); }}
-                      className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all flex items-center space-x-4 ${
-                        selectedLesson?.id === lesson.id 
-                          ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' 
-                          : 'hover:bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border shrink-0 ${
-                        selectedLesson?.id === lesson.id ? 'border-white/30 bg-white/10' : 'border-slate-300 bg-white text-slate-400'
-                      }`}>
-                        {lIdx + 1}
-                      </div>
-                      <span className="text-[10px] font-black uppercase flex-1 leading-tight">{lesson.title}</span>
-                      {selectedLesson?.id === lesson.id && <Play className="w-3 h-3" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </>
-        ) : (
-          <div className="p-4 space-y-3">
-            {courseMaterials.length > 0 ? (
-              courseMaterials.map(m => (
-                <a 
-                  key={m.id} 
-                  href={m.fileUrl} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="flex items-center p-4 bg-white border border-slate-100 rounded-2xl hover:border-red-600 transition-all shadow-sm group"
+        <div className="space-y-4 px-2">
+          {course.modules?.map((module, mIdx) => {
+            const moduleId = module.id || String(mIdx);
+            const isExpanded = expandedModules[moduleId];
+            
+            return (
+              <div key={moduleId} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                <button
+                  onClick={() => toggleModule(moduleId)}
+                  className="w-full px-6 py-5 flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition-colors"
                 >
-                  <div className="bg-slate-100 p-2 rounded-lg group-hover:bg-red-50 transition-colors">
-                    <FileText className="w-5 h-5 text-slate-600 group-hover:text-red-600" />
+                  <div className="flex items-center gap-4">
+                    <div className="bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black shadow-lg shadow-red-600/20">
+                      {mIdx + 1}
+                    </div>
+                    <h4 className="font-black uppercase tracking-tighter text-sm text-slate-900">{module.title}</h4>
                   </div>
-                  <div className="ml-3 flex-1">
-                    <span className="text-[9px] font-black uppercase block">{m.title}</span>
-                    <span className="text-[7px] font-bold text-slate-400 uppercase">Download PDF</span>
-                  </div>
-                  <Download className="w-4 h-4 text-slate-300 group-hover:text-red-600" />
-                </a>
-              ))
-            ) : (
-              <div className="text-center py-12 opacity-50">
-                <p className="text-[9px] font-black uppercase">Nenhum arquivo disponível</p>
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </button>
+                
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-2 space-y-1">
+                        {module.lessons?.map((lesson, lIdx) => (
+                          <button
+                            key={lesson.id || lIdx}
+                            onClick={() => { setSelectedLesson(lesson); setIsSidebarOpen(false); }}
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center space-x-4 ${
+                              selectedLesson?.id === lesson.id 
+                                ? 'bg-slate-950 text-white shadow-lg' 
+                                : 'hover:bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black border shrink-0 ${
+                              selectedLesson?.id === lesson.id ? 'border-white/30 bg-white/10' : 'border-slate-200 bg-white text-slate-400'
+                            }`}>
+                              {lIdx + 1}
+                            </div>
+                            <span className="text-[9px] font-bold uppercase flex-1 leading-tight">{lesson.title}</span>
+                            {selectedLesson?.id === lesson.id && <Play className="w-2.5 h-2.5" />}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            )}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -263,58 +264,29 @@ const CoursePlayer: React.FC<CoursePlayerProps> = ({ course, onBack, materials }
                 )}
               </div>
 
-              {/* Títulos e Controles de Versão */}
+              {/* Títulos */}
               <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50 p-6 md:p-8 rounded-[2.5rem] border border-slate-100">
-                 <div className="flex p-1 bg-slate-200 rounded-2xl w-full md:w-auto">
-                   <button 
-                    onClick={() => setVideoType('arranjo')} 
-                    className={`flex-1 md:px-10 py-3.5 rounded-xl text-[10px] font-black uppercase transition-all ${videoType === 'arranjo' ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' : 'text-slate-500 hover:text-slate-700'}`}
-                   >
-                     ARRANJO
-                   </button>
-                   <button 
-                    onClick={() => setVideoType('aovivo')} 
-                    className={`flex-1 md:px-10 py-3.5 rounded-xl text-[10px] font-black uppercase transition-all ${videoType === 'aovivo' ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' : 'text-slate-500 hover:text-slate-700'}`}
-                   >
-                     AULA AO VIVO
-                   </button>
-                 </div>
-                 
-                 <div className="text-center md:text-right w-full md:w-auto">
-                   <h2 className="text-xl md:text-3xl font-black uppercase tracking-tighter leading-none">{selectedLesson.title}</h2>
-                   <div className="flex items-center justify-center md:justify-end gap-2 mt-2">
-                     <Badge variant="outline">{course.instrument}</Badge>
-                     <Badge variant="outline">{course.level}</Badge>
+                 <div className="text-center md:text-left w-full">
+                   <h2 className="text-xl md:text-4xl font-black uppercase tracking-tighter leading-none">{selectedLesson.title}</h2>
+                   <div className="flex items-center justify-center md:justify-start gap-2 mt-4">
+                     <Badge variant="error">{course.instrument}</Badge>
+                     <Badge variant="outline" className="border-slate-200">{course.level}</Badge>
                    </div>
                  </div>
               </div>
             </motion.div>
 
-            {/* Colunas: Descrição e Ferramentas */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
-              <div className="lg:col-span-2 space-y-8">
-                <Card className="p-8 md:p-12">
-                   <h3 className="text-[10px] font-black uppercase text-red-600 tracking-[0.2em] mb-8 border-b border-slate-100 pb-4 flex items-center gap-2">
-                     <FileText className="w-4 h-4" />
-                     DESCRIÇÃO DA AULA
-                   </h3>
-                   <p className="text-sm md:text-base text-slate-600 leading-relaxed font-medium">
-                     {selectedLesson.description || "Toque Sacro de Forma Fácil - Estudo técnico e prático para louvor."}
-                   </p>
-                </Card>
-
-                {/* Mobile Tools (Visible only on small screens) */}
-                <div className="lg:hidden space-y-8">
-                  <ToolSection title="Metrônomo" icon={<Clock className="w-5 h-5" />}><Metronome /></ToolSection>
-                  <ToolSection title="Afinador" icon={<Music className="w-5 h-5" />}><Tuner /></ToolSection>
-                </div>
-              </div>
-
-              {/* Desktop Tools */}
-              <div className="hidden lg:block space-y-8">
-                <ToolSection title="Metrônomo" icon={<Clock className="w-5 h-5" />}><Metronome /></ToolSection>
-                <ToolSection title="Afinador" icon={<Music className="w-5 h-5" />}><Tuner /></ToolSection>
-              </div>
+            {/* Colunas: Descrição */}
+            <div className="max-w-4xl mx-auto">
+              <Card className="p-8 md:p-12">
+                 <h3 className="text-[10px] font-black uppercase text-red-600 tracking-[0.2em] mb-8 border-b border-slate-100 pb-4 flex items-center gap-2">
+                   <FileText className="w-4 h-4" />
+                   DESCRIÇÃO DA AULA
+                 </h3>
+                 <p className="text-sm md:text-base text-slate-600 leading-relaxed font-medium">
+                   {selectedLesson.description || "Toque Sacro de Forma Fácil - Estudo técnico e prático para louvor."}
+                 </p>
+              </Card>
             </div>
           </div>
         </main>

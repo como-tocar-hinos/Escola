@@ -1,7 +1,10 @@
 
 import React, { useState, useRef } from 'react';
 import { User, Course, ScheduledClass, Material, Payment, LessonDB, Quote } from '../types';
+import { parseLocalDate, formatDisplayDate, getMonthName, getShortMonthName, getDayOfMonth } from '../utils';
 import CoursePlayer from './CoursePlayer';
+import Metronome from './Metronome';
+import Tuner from './Tuner';
 import { DEFAULT_AVATARS } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -36,7 +39,7 @@ interface StudentDashboardProps {
   onUpdateProfile: (user: User) => Promise<void>;
 }
 
-type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
+type Tab = 'overview' | 'courses' | 'practice' | 'materials' | 'cronograma' | 'payments';
 
   const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
     user, students = [], onLogout, courses = [], schedules = [], materials = [], payments = [], quotes = [], onUpdateProfile
@@ -68,7 +71,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
   
   const mySchedules = (schedules || [])
     .filter(s => myProfileIds.includes(s.studentId))
-    .sort((a, b) => new Date(b.date.replace(/-/g, '\/')).getTime() - new Date(a.date.replace(/-/g, '\/')).getTime());
+    .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
   
   const myPayments = (payments || []).filter(p => myProfileIds.includes(p.studentId));
   
@@ -102,7 +105,12 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
 
   if (viewingCourse) {
     return (
-      <CoursePlayer course={viewingCourse} onBack={() => setViewingCourse(null)} materials={materials} />
+      <CoursePlayer 
+        course={viewingCourse} 
+        onBack={() => setViewingCourse(null)} 
+        materials={materials} 
+        user={user}
+      />
     );
   }
 
@@ -146,6 +154,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
         <div className="max-w-7xl mx-auto px-4 flex gap-8">
           <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<Activity className="w-4 h-4" />} label="Geral" />
           <TabButton active={activeTab === 'courses'} onClick={() => setActiveTab('courses')} icon={<BookOpen className="w-4 h-4" />} label="Cursos" />
+          <TabButton active={activeTab === 'materials'} onClick={() => setActiveTab('materials')} icon={<FileText className="w-4 h-4" />} label="Materiais" />
           <TabButton active={activeTab === 'practice'} onClick={() => setActiveTab('practice')} icon={<Music className="w-4 h-4" />} label="Página de Estudos" />
           <TabButton active={activeTab === 'cronograma'} onClick={() => setActiveTab('cronograma')} icon={<FileText className="w-4 h-4" />} label="Cronograma" />
           <TabButton active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} icon={<CreditCard className="w-4 h-4" />} label="Financeiro" />
@@ -175,8 +184,8 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                         <Card key={sc.id} className="flex flex-col md:flex-row justify-between items-center gap-8 group border-slate-100">
                           <div className="flex items-center gap-8 w-full md:w-auto">
                             <div className="bg-slate-950 text-white w-20 h-20 rounded-3xl flex flex-col items-center justify-center font-black shadow-xl shrink-0">
-                              <span className="text-[10px] uppercase opacity-50">{new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString('pt-BR', { month: 'short' })}</span>
-                              <span className="text-3xl leading-none">{new Date(sc.date.replace(/-/g, '\/')).getDate()}</span>
+                              <span className="text-[10px] uppercase opacity-50">{getShortMonthName(sc.date)}</span>
+                              <span className="text-3xl leading-none">{getDayOfMonth(sc.date)}</span>
                             </div>
                             <div>
                               <h4 className="text-2xl font-black uppercase tracking-tighter group-hover:text-red-600 transition-colors leading-tight">{sc.title || 'Aula Presencial'}</h4>
@@ -246,7 +255,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                      {mySchedules.filter(s => s.status === 'COMPLETED').map(sc => (
                        <div key={sc.id} className={`border-l-4 ${sc.title?.includes('[FALTA]') ? 'border-red-400' : 'border-red-600'} pl-6 py-4 bg-slate-50 rounded-r-3xl flex justify-between items-center group hover:bg-slate-100 transition-all ${sc.title?.includes('[FALTA]') ? 'opacity-70' : ''}`}>
                           <div>
-                            <p className="text-[10px] font-black uppercase text-slate-400">{new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString()}</p>
+                            <p className="text-[10px] font-black uppercase text-slate-400">{formatDisplayDate(sc.date)}</p>
                             <p className="text-sm font-black uppercase tracking-tighter group-hover:text-red-600 truncate max-w-[150px]">{sc.title?.replace('[FALTA]', '').trim() || 'Aula Concluída'}</p>
                             {sc.title?.includes('[FALTA]') && <Badge variant="error" className="mt-1">Falta</Badge>}
                           </div>
@@ -322,45 +331,6 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                       Continuar Curso
                     </Button>
                   </div>
-
-                  <div className="space-y-8">
-                    <div className="flex items-center gap-4">
-                      <h3 className="text-2xl font-black uppercase tracking-tighter">Conteúdo do Curso</h3>
-                      <div className="h-px flex-1 bg-slate-100"></div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      {course.modules?.map((module, mIdx) => (
-                        <div key={module.id || mIdx} className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden shadow-sm">
-                          <div className="bg-slate-50 px-8 py-6 flex justify-between items-center border-b border-slate-100">
-                            <div className="flex items-center gap-4">
-                              <div className="bg-slate-950 text-white w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black">
-                                {mIdx + 1}
-                              </div>
-                              <h4 className="font-black uppercase tracking-tight text-sm">{module.title}</h4>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{module.lessons?.length || 0} Aulas</span>
-                          </div>
-                          <div className="p-4 space-y-2">
-                            {module.lessons?.map((lesson, lIdx) => (
-                              <div key={lesson.id || lIdx} className="flex items-center justify-between p-4 hover:bg-slate-50 rounded-2xl transition-all group cursor-pointer" onClick={() => setViewingCourse(course)}>
-                                <div className="flex items-center gap-4">
-                                  <div className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-400 group-hover:border-red-600 group-hover:text-red-600 transition-colors">
-                                    {lIdx + 1}
-                                  </div>
-                                  <span className="text-xs font-black uppercase tracking-tight text-slate-600 group-hover:text-slate-900">{lesson.title}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <span className="text-[9px] font-bold text-slate-300 uppercase hidden sm:block">Vídeo Aula</span>
-                                  <Play className="w-3 h-3 text-slate-300 group-hover:text-red-600" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               ))}
               {myCourses.length === 0 && (
@@ -377,13 +347,62 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="w-full h-[800px] rounded-[3rem] overflow-hidden border border-slate-200 shadow-2xl"
+              className="space-y-8"
             >
-              <iframe 
-                src="https://paginadeestudos.netlify.app" 
-                className="w-full h-full border-none"
-                title="Página de Estudos"
-              />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Metronome />
+                <Tuner />
+              </div>
+              
+              <div className="w-full h-[600px] rounded-[3rem] overflow-hidden border border-slate-200 shadow-2xl">
+                <iframe 
+                  src="https://paginadeestudos.netlify.app" 
+                  className="w-full h-full border-none"
+                  title="Página de Estudos"
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'materials' && (
+            <motion.div 
+              key="materials"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-8"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <h3 className="text-2xl font-black uppercase tracking-tighter">Materiais de Estudo</h3>
+                <div className="h-px flex-1 bg-slate-100"></div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myMaterials.map(material => (
+                  <Card key={material.id} className="p-6 border-slate-100 hover:border-red-600 transition-all group">
+                    <div className="bg-slate-100 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-red-50 transition-colors">
+                      <FileText className="w-6 h-6 text-slate-400 group-hover:text-red-600" />
+                    </div>
+                    <h4 className="font-black uppercase tracking-tighter text-lg mb-2">{material.title}</h4>
+                    <div className="flex items-center gap-2 mb-6">
+                      <Badge variant="outline" className="text-[9px]">{material.instrument}</Badge>
+                      <Badge variant="outline" className="text-[9px]">{material.level}</Badge>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="w-full py-4 text-[10px] font-black uppercase tracking-widest"
+                      onClick={() => window.open(material.fileUrl, '_blank')}
+                    >
+                      Abrir Material
+                    </Button>
+                  </Card>
+                ))}
+                {myMaterials.length === 0 && (
+                  <div className="col-span-full text-center py-20 bg-slate-50 rounded-4xl border-2 border-dashed border-slate-200">
+                    <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em]">Nenhum material disponível para você.</p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -416,7 +435,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                       {sc.title || 'Aula de Música'}
                     </h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      {new Date(sc.date.replace(/-/g, '\/')).toLocaleDateString()} às {sc.time}
+                      {formatDisplayDate(sc.date)} às {sc.time}
                     </p>
                   </Card>
                 ))}
@@ -456,8 +475,8 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                         <CreditCard className="w-5 h-5 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="font-black text-sm uppercase">Mensalidade {new Date(p.dueDate.replace(/-/g, '\/')).toLocaleDateString('pt-BR', { month: 'long' })}</p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Vencimento: {new Date(p.dueDate.replace(/-/g, '\/')).toLocaleDateString()}</p>
+                        <p className="font-black text-sm uppercase">Mensalidade {getMonthName(p.dueDate)}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Vencimento: {formatDisplayDate(p.dueDate)}</p>
                       </div>
                     </div>
                     <div className="text-right">

@@ -79,16 +79,6 @@ export interface PracticeSession {
   notes?: string;
 }
 
-export interface Material {
-  id: string;
-  title: string;
-  fileUrl: string;
-  instrument: Instrument;
-  level: Level;
-  studentIds?: string[];
-  courseId?: string;
-}
-
 export interface Payment {
   id: string;
   studentId: string;

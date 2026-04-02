@@ -5,7 +5,7 @@ import { MOCK_ADMIN, MOCK_STUDENTS, MOCK_COURSES, MOCK_SCHEDULES, MOCK_PAYMENTS,
 import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
 import Login from './components/Login';
-import { supabase } from './services/supabase';
+import { supabase, isSupabaseConfigured } from './services/supabase';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -356,6 +356,11 @@ const App: React.FC = () => {
     <div className="h-screen flex flex-col items-center justify-center bg-white">
       <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-red-600 mb-4"></div>
       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sincronizando com a Escola...</p>
+      {!isSupabaseConfigured() && (
+        <p className="mt-4 text-xs text-red-500 font-medium text-center max-w-xs">
+          ⚠️ Supabase não configurado corretamente. Verifique as chaves no arquivo services/supabase.ts ou nos Secrets.
+        </p>
+      )}
     </div>
   );
 

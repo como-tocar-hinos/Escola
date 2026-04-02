@@ -1,5 +1,5 @@
 
-import { Course, Material, ScheduledClass, User, Payment, Module, Lesson, CycleLesson } from './types';
+import { Course, ScheduledClass, User, Payment, Module, Lesson, CycleLesson } from './types';
 
 export const COLORS = {
   primary: '#cc0000',
@@ -101,9 +101,4 @@ export const MOCK_SCHEDULES: ScheduledClass[] = [
 
 export const MOCK_PAYMENTS: Payment[] = [
   { id: 'p1', studentId: 'std-1', amount: 150.00, status: 'PAID', dueDate: '2023-11-05' },
-];
-
-export const MOCK_MATERIALS: Material[] = [
-  { id: 'm1', title: 'Apostila Hinos CCB - Violão', fileUrl: '#', instrument: 'Violão', level: 'NZ' },
-  { id: 'm2', title: 'Partituras Hinos 1 ao 50', fileUrl: '#', instrument: 'Piano', level: 'N1' },
 ];
