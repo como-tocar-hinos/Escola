@@ -365,7 +365,14 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                       )}
                     </div>
                     <h4 className={`font-black uppercase text-sm tracking-tight mb-2 ${sc.status === 'COMPLETED' ? 'text-emerald-900' : 'text-slate-900'}`}>
-                      {sc.title || 'Aula de Música'}
+                      {sc.title?.includes('[FALTA]') ? (
+                        <>
+                          <span className="text-red-600">[FALTA] </span>
+                          {sc.title.replace('[FALTA]', '').trim()}
+                        </>
+                      ) : (
+                        sc.title || 'Aula de Música'
+                      )}
                     </h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       {formatDisplayDate(sc.date)} às {sc.time}
