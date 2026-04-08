@@ -108,3 +108,25 @@ export const getDayOfWeek = (dateStr: string): string => {
   const date = parseLocalDate(dateStr);
   return days[date.getDay()];
 };
+
+/**
+ * Converte uma URL de vídeo (YouTube, Vimeo) para o formato de embed.
+ */
+export const getVideoEmbedUrl = (url: string): string => {
+  if (!url) return '';
+
+  // YouTube
+  const ytMatch = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(.+)/);
+  if (ytMatch && ytMatch[1]) {
+    const id = ytMatch[1].split('&')[0];
+    return `https://www.youtube.com/embed/${id}`;
+  }
+
+  // Vimeo
+  const vimeoMatch = url.match(/(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(.+)/);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+
+  return url;
+};

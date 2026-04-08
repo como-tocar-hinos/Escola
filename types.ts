@@ -93,3 +93,13 @@ export interface Quote {
   reference: string;
   created_at?: string;
 }
+
+export interface Recital {
+  id: string;
+  studentId: string;
+  courseId: string;
+  hymnName: string;
+  videoUrl: string;
+  completed: boolean;
+  createdAt?: string;
+}

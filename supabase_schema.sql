@@ -71,6 +71,17 @@ CREATE TABLE IF NOT EXISTS quotes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 7. Tabela de Recitais
+CREATE TABLE IF NOT EXISTS recitals (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  hymn_name TEXT NOT NULL,
+  video_url TEXT NOT NULL,
+  completed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Habilitar RLS (Row Level Security) para todas as tabelas
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
@@ -78,6 +89,7 @@ ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recitals ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de Acesso (Simplificadas para garantir sincronização)
 -- Nota: Em produção, estas políticas devem ser mais restritivas.
@@ -105,3 +117,7 @@ CREATE POLICY "Edição de materiais" ON materials FOR ALL USING (true);
 -- Citações: Leitura pública, edição apenas admin
 CREATE POLICY "Leitura de citações" ON quotes FOR SELECT USING (true);
 CREATE POLICY "Edição de citações" ON quotes FOR ALL USING (true);
+
+-- Recitais: Leitura pública, edição apenas admin
+CREATE POLICY "Leitura de recitais" ON recitals FOR SELECT USING (true);
+CREATE POLICY "Edição de recitais" ON recitals FOR ALL USING (true);

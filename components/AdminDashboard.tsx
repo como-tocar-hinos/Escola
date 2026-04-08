@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { User, Course, ScheduledClass, Payment, Instrument, Level, Module, Lesson } from '../types';
+import { User, Course, ScheduledClass, Payment, Instrument, Level, Module, Lesson, Recital } from '../types';
 import { DEFAULT_AVATARS } from '../constants';
-import { parseLocalDate, formatDisplayDate, getDayOfWeek, getDayOfMonth, getMonthName, getShortMonthName } from '../utils';
+import { parseLocalDate, formatDisplayDate, getDayOfWeek, getDayOfMonth, getMonthName, getShortMonthName, getVideoEmbedUrl } from '../utils';
 import { generateLessonDescription } from '../services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -23,7 +23,9 @@ import {
   Activity,
   Search,
   MessageCircle,
-  FileText
+  FileText,
+  Mic2,
+  Play
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -51,14 +53,18 @@ interface AdminDashboardProps {
   onDeleteSchedule: (id: string) => Promise<void>;
   onDeleteCourse: (id: string) => Promise<void>;
   onDeletePayment: (id: string) => Promise<void>;
+  recitals: Recital[];
+  onAddRecital: (r: Partial<Recital>) => Promise<void>;
+  onDeleteRecital: (id: string) => Promise<void>;
 }
 
-type AdminView = 'dashboard' | 'students' | 'courses' | 'schedules' | 'payments';
+type AdminView = 'dashboard' | 'students' | 'courses' | 'schedules' | 'payments' | 'recitais';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   user, onLogout, students, courses, schedules, payments, 
   onAddStudent, onUpdateStudent, onAddSchedule, onUpdateSchedule, onAddCourse, onUpdateCourseContent, onUpdateCourseAccess, onAddPayment, onUpdatePayment,
-  onDeleteStudent, onResetPassword, onDeleteSchedule, onDeleteCourse, onDeletePayment
+  onDeleteStudent, onResetPassword, onDeleteSchedule, onDeleteCourse, onDeletePayment,
+  recitals, onAddRecital, onDeleteRecital
 }) => {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -70,6 +76,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [isAddingSchedule, setIsAddingSchedule] = useState(false);
   const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [isAddingRecital, setIsAddingRecital] = useState(false);
+  const [viewingRecitalVideo, setViewingRecitalVideo] = useState<Recital | null>(null);
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState('Olá! Passando para lembrar da importância de dedicar pelo menos 15 minutos hoje ao seu instrumento. A prática constante é o segredo do louvor perfeito! 🎹🎸');
   const [sentStudents, setSentStudents] = useState<string[]>([]);
@@ -179,6 +187,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           icon={<CreditCard className="w-5 h-5" />} label="Financeiro" 
         />
         <SidebarLink 
+          active={activeView === 'recitais'} 
+          onClick={() => { setActiveView('recitais'); setIsSidebarOpen(false); }} 
+          icon={<Mic2 className="w-5 h-5" />} label="Recitais" 
+        />
+        <SidebarLink 
           active={isSendingBroadcast} 
           onClick={() => { setIsSendingBroadcast(true); setIsSidebarOpen(false); }} 
           icon={<MessageCircle className="w-5 h-5" />} label="Dica do Professor" 
@@ -245,6 +258,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                  {activeView === 'courses' && "Cursos"}
                  {activeView === 'schedules' && "Agenda"}
                  {activeView === 'payments' && "Financeiro"}
+                 {activeView === 'recitais' && "Recitais"}
                </h1>
                <p className="hidden lg:block text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Escola Como Tocar Hinos</p>
              </div>
@@ -795,6 +809,89 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </Card>
             </div>
           )}
+
+          {activeView === 'recitais' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <h2 className="text-2xl font-black uppercase tracking-tighter">Recitais dos Alunos</h2>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vídeos de Conclusão de Hinos</p>
+                </div>
+                <Button onClick={() => setIsAddingRecital(true)} className="px-6">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Recital
+                </Button>
+              </div>
+
+              <Card className="overflow-hidden border-none shadow-xl">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-left min-w-[800px]">
+                    <thead className="bg-slate-950 text-white">
+                      <tr>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest">Aluno</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest">Curso</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest">Hino</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest">Status</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest text-center">Vídeo</th>
+                        <th className="p-6 md:p-8 text-[10px] font-black uppercase tracking-widest text-center">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {recitals.length > 0 ? recitals.map(r => (
+                        <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-6 md:p-8">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black">
+                                {students.find(s => s.id === r.studentId)?.name?.charAt(0) || '?'}
+                              </div>
+                              <span className="text-xs font-black uppercase tracking-tight">{students.find(s => s.id === r.studentId)?.name}</span>
+                            </div>
+                          </td>
+                          <td className="p-6 md:p-8">
+                            <span className="text-xs font-bold text-slate-400 uppercase">{courses.find(c => c.id === r.courseId)?.title}</span>
+                          </td>
+                          <td className="p-6 md:p-8">
+                            <span className="text-xs font-black uppercase">{r.hymnName}</span>
+                          </td>
+                          <td className="p-6 md:p-8">
+                            <Badge variant={r.completed ? 'success' : 'warning'}>
+                              {r.completed ? 'Concluído' : 'Pendente'}
+                            </Badge>
+                          </td>
+                          <td className="p-6 md:p-8 text-center">
+                            <Button 
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setViewingRecitalVideo(r)}
+                              className="text-blue-600 hover:bg-blue-50"
+                            >
+                              <Play className="w-4 h-4" />
+                            </Button>
+                          </td>
+                          <td className="p-6 md:p-8 text-center">
+                            <Button 
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => { if(confirm('Excluir recital?')) onDeleteRecital(r.id); }}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={5} className="p-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                            Nenhum recital cadastrado.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* Modals */}
@@ -1199,6 +1296,95 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <Button type="submit" className="w-full py-6 mt-4">Registrar Pagamento</Button>
               </form>
             </Card>
+          </div>
+        )}
+
+        {isAddingRecital && (
+          <div className="fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-4 backdrop-blur-md">
+            <Card className="bg-white w-full max-w-md p-8 md:p-10 space-y-6 md:space-y-10 animate-in zoom-in duration-300 shadow-2xl overflow-y-auto max-h-[95vh] custom-scrollbar relative rounded-[3rem]">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl md:text-3xl font-black uppercase tracking-tighter">Novo Recital</h3>
+                <button type="button" onClick={() => setIsAddingRecital(false)} className="text-3xl md:text-4xl font-black hover:text-red-600 transition-colors">&times;</button>
+              </div>
+              <form onSubmit={async (e) => { 
+                e.preventDefault(); 
+                const formData = new FormData(e.currentTarget);
+                const newRecital: Partial<Recital> = {
+                  studentId: formData.get('studentId') as string,
+                  courseId: formData.get('courseId') as string,
+                  hymnName: formData.get('hymnName') as string,
+                  videoUrl: formData.get('videoUrl') as string,
+                };
+                setIsSyncing(true);
+                await onAddRecital(newRecital); 
+                setIsSyncing(false);
+                setIsAddingRecital(false); 
+              }} className="space-y-6">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Aluno</label>
+                  <select name="studentId" required className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                    {students.filter(s => s.role === 'STUDENT').map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase text-gray-400 ml-4">Curso</label>
+                  <select name="courseId" required className="w-full border-2 border-gray-100 p-4 rounded-2xl text-xs font-bold outline-none focus:border-red-600 transition-all">
+                    {courses.map(c => (
+                      <option key={c.id} value={c.id}>{c.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <Input label="Nome do Hino" name="hymnName" required placeholder="Ex: Hino 1 - Com Minha Voz" />
+                <Input label="URL do Vídeo (YouTube/Vimeo)" name="videoUrl" required placeholder="https://..." />
+                <Button type="submit" className="w-full py-6 mt-4">Adicionar Recital</Button>
+              </form>
+            </Card>
+          </div>
+        )}
+
+        {viewingRecitalVideo && (
+          <div className="fixed inset-0 bg-black/95 z-[600] flex items-center justify-center p-4 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white w-full max-w-4xl rounded-[3rem] overflow-hidden shadow-2xl relative"
+            >
+              <div className="bg-slate-900 p-6 md:p-8 flex justify-between items-center text-white">
+                <div>
+                  <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter">{viewingRecitalVideo.hymnName}</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    Aluno: {students.find(s => s.id === viewingRecitalVideo.studentId)?.name}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setViewingRecitalVideo(null)}
+                  className="p-3 bg-white/10 hover:bg-red-600 rounded-2xl transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="aspect-video bg-black">
+                <iframe 
+                  src={getVideoEmbedUrl(viewingRecitalVideo.videoUrl)}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+
+              <div className="p-8 bg-slate-50 flex justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setViewingRecitalVideo(null)}
+                  className="px-12"
+                >
+                  Fechar Vídeo
+                </Button>
+              </div>
+            </motion.div>
           </div>
         )}
 

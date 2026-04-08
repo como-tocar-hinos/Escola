@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Course, ScheduledClass, Payment, LessonDB, Quote } from '../types';
-import { parseLocalDate, formatDisplayDate, getMonthName, getShortMonthName, getDayOfMonth } from '../utils';
+import { User, Course, ScheduledClass, Payment, LessonDB, Quote, Recital } from '../types';
+import { parseLocalDate, formatDisplayDate, getMonthName, getShortMonthName, getDayOfMonth, getVideoEmbedUrl } from '../utils';
 import CoursePlayer from './CoursePlayer';
 import { DEFAULT_AVATARS } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,7 +18,8 @@ import {
   Clock,
   Mic2,
   Activity,
-  XCircle
+  XCircle,
+  X
 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
@@ -34,16 +35,20 @@ interface StudentDashboardProps {
   payments: Payment[];
   quotes?: Quote[];
   onUpdateProfile: (user: User) => Promise<void>;
+  recitals: Recital[];
+  onUpdateRecital: (id: string, completed: boolean) => Promise<void>;
 }
 
-type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
+type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments' | 'recitais';
 
   const StudentDashboard: React.FC<StudentDashboardProps> = ({ 
-    user, students = [], onLogout, courses = [], schedules = [], payments = [], quotes = [], onUpdateProfile
+    user, students = [], onLogout, courses = [], schedules = [], payments = [], quotes = [], onUpdateProfile,
+    recitals = [], onUpdateRecital
   }) => {
     console.log("StudentDashboard Render:", { userEmail: user.email, userRole: user.role, coursesCount: courses.length });
     const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [viewingCourse, setViewingCourse] = useState<Course | null>(null);
+  const [viewingRecitalVideo, setViewingRecitalVideo] = useState<Recital | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState<User>(user);
   const [isSaving, setIsSaving] = useState(false);
@@ -145,6 +150,7 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
           <TabButton active={activeTab === 'practice'} onClick={() => setActiveTab('practice')} icon={<Music className="w-4 h-4" />} label="Página de Estudos" />
           <TabButton active={activeTab === 'cronograma'} onClick={() => setActiveTab('cronograma')} icon={<FileText className="w-4 h-4" />} label="Cronograma" />
           <TabButton active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} icon={<CreditCard className="w-4 h-4" />} label="Financeiro" />
+          <TabButton active={activeTab === 'recitais'} onClick={() => setActiveTab('recitais')} icon={<Mic2 className="w-4 h-4" />} label="Recitais" />
         </div>
       </nav>
 
@@ -428,6 +434,77 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
               </div>
             </motion.div>
           )}
+
+          {activeTab === 'recitais' && (
+            <motion.div 
+              key="recitais"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-12"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <h3 className="text-2xl font-black uppercase tracking-tighter">Meus Recitais</h3>
+                <div className="h-px flex-1 bg-slate-100"></div>
+              </div>
+
+              {(() => {
+                const myRecitals = recitals.filter(r => myProfileIds.includes(r.studentId));
+                const groupedByCourse = myRecitals.reduce((acc, r) => {
+                  if (!acc[r.courseId]) acc[r.courseId] = [];
+                  acc[r.courseId].push(r);
+                  return acc;
+                }, {} as Record<string, Recital[]>);
+
+                if (myRecitals.length === 0) {
+                  return (
+                    <div className="text-center py-32 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                      <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em]">Nenhum recital disponível para você ainda.</p>
+                    </div>
+                  );
+                }
+
+                return (Object.entries(groupedByCourse) as [string, Recital[]][]).map(([courseId, courseRecitals]) => {
+                  const course = courses.find(c => c.id === courseId);
+                  return (
+                    <div key={courseId} className="space-y-6">
+                      <div className="bg-slate-900 text-white px-8 py-4 rounded-2xl inline-block">
+                        <h4 className="text-sm font-black uppercase tracking-widest">{course?.title || 'Curso'}</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {courseRecitals.map(r => (
+                          <Card key={r.id} className={`p-8 border-2 transition-all ${r.completed ? 'border-emerald-100 bg-emerald-50/30' : 'border-slate-100 bg-white'}`}>
+                            <div className="flex justify-between items-start mb-6">
+                              <div className={`p-3 rounded-2xl ${r.completed ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                <Mic2 className="w-5 h-5" />
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                checked={r.completed}
+                                onChange={(e) => onUpdateRecital(r.id, e.target.checked)}
+                                className="w-6 h-6 rounded-lg border-2 border-slate-200 text-red-600 focus:ring-red-600 cursor-pointer"
+                              />
+                            </div>
+                            <h5 className={`font-black uppercase text-lg tracking-tighter mb-6 leading-tight ${r.completed ? 'text-emerald-900' : 'text-slate-900'}`}>
+                              {r.hymnName}
+                            </h5>
+                            <Button 
+                              variant={r.completed ? 'outline' : 'primary'}
+                              className="w-full py-4 text-[10px] font-black uppercase tracking-widest"
+                              onClick={() => setViewingRecitalVideo(r)}
+                            >
+                              <Play className="w-4 h-4 mr-2 fill-current" />
+                              Ver Vídeo
+                            </Button>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
@@ -489,6 +566,50 @@ type Tab = 'overview' | 'courses' | 'practice' | 'cronograma' | 'payments';
                  Confirmar Alterações
                </Button>
              </form>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingRecitalVideo && (
+        <div className="fixed inset-0 bg-slate-950/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white w-full max-w-4xl rounded-[3rem] overflow-hidden shadow-2xl relative"
+          >
+            <div className="bg-slate-900 p-6 md:p-8 flex justify-between items-center text-white">
+              <div>
+                <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter">{viewingRecitalVideo.hymnName}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  {courses.find(c => c.id === viewingRecitalVideo.courseId)?.title}
+                </p>
+              </div>
+              <button 
+                onClick={() => setViewingRecitalVideo(null)}
+                className="p-3 bg-white/10 hover:bg-red-600 rounded-2xl transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="aspect-video bg-black">
+              <iframe 
+                src={getVideoEmbedUrl(viewingRecitalVideo.videoUrl)}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+
+            <div className="p-8 bg-slate-50 flex justify-center">
+              <Button 
+                variant="outline" 
+                onClick={() => setViewingRecitalVideo(null)}
+                className="px-12"
+              >
+                Fechar Vídeo
+              </Button>
+            </div>
           </motion.div>
         </div>
       )}

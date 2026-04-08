@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { User, UserRole, Course, ScheduledClass, Payment, Instrument, Level, LessonDB, Quote } from './types';
+import { User, UserRole, Course, ScheduledClass, Payment, Instrument, Level, LessonDB, Quote, Recital } from './types';
 import { MOCK_ADMIN, MOCK_STUDENTS, MOCK_COURSES, MOCK_SCHEDULES, MOCK_PAYMENTS, DEFAULT_AVATARS } from './constants';
 import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduledClass[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [recitals, setRecitals] = useState<Recital[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -69,6 +70,28 @@ const App: React.FC = () => {
       const { data: dbQuotes, error: qError } = await supabase.from('quotes').select('*');
       if (!qError && dbQuotes) setQuotes(dbQuotes);
 
+      // 7. Buscar Recitais
+      console.log("Buscando recitais...");
+      const { data: dbRecitals, error: rError } = await supabase.from('recitals').select('*');
+      if (rError) {
+        console.error("Erro na tabela de recitais:", rError);
+      }
+      
+      if (!rError && dbRecitals) {
+        console.log(`${dbRecitals.length} recitais encontrados.`);
+        setRecitals(dbRecitals.map((r: any) => ({
+          ...r,
+          studentId: r.student_id,
+          courseId: r.course_id,
+          hymnName: r.hymn_name,
+          videoUrl: r.video_url,
+          createdAt: r.created_at
+        })));
+      } else if (!rError) {
+        console.warn("Nenhum recital retornado do banco de dados.");
+        setRecitals([]);
+      }
+
       console.log("Dados carregados com sucesso!");
     } catch (err: any) {
       console.error("Erro na busca de dados:", err);
@@ -78,6 +101,7 @@ const App: React.FC = () => {
       setCourses(MOCK_COURSES);
       setSchedules(MOCK_SCHEDULES);
       setPayments(MOCK_PAYMENTS);
+      setRecitals([]);
     }
   }, []);
 
@@ -237,6 +261,7 @@ const App: React.FC = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'courses' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recitals' }, () => fetchData())
       .subscribe();
 
     return () => {
@@ -597,6 +622,23 @@ const App: React.FC = () => {
             if (error) alert("Erro ao excluir pagamento: " + error.message);
             await fetchData(); 
           }}
+          recitals={recitals}
+          onAddRecital={async (r) => {
+            const { error } = await supabase.from('recitals').insert([{
+              student_id: r.studentId,
+              course_id: r.courseId,
+              hymn_name: r.hymnName,
+              video_url: r.videoUrl,
+              completed: false
+            }]);
+            if (error) alert("Erro ao adicionar recital: " + error.message);
+            await fetchData();
+          }}
+          onDeleteRecital={async (id) => {
+            const { error } = await supabase.from('recitals').delete().eq('id', id);
+            if (error) alert("Erro ao excluir recital: " + error.message);
+            await fetchData();
+          }}
         />
       ) : (
         <StudentDashboard 
@@ -606,6 +648,12 @@ const App: React.FC = () => {
           payments={payments}
           quotes={quotes}
           onUpdateProfile={async (u) => { await supabase.from('profiles').update({ name: u.name, whatsapp: u.whatsapp, avatar: u.avatar }).eq('id', u.id); setUser(u); await fetchData(); }}
+          recitals={recitals}
+          onUpdateRecital={async (id, completed) => {
+            const { error } = await supabase.from('recitals').update({ completed }).eq('id', id);
+            if (error) alert("Erro ao atualizar recital: " + error.message);
+            await fetchData();
+          }}
         />
       )}
     </div>
