@@ -11,6 +11,7 @@ async function startServer() {
 
   const allowedOrigins = [
     "https://comotocarhinos.com.br", 
+    "https://www.comotocarhinos.com.br",
     "https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app", 
     "https://ais-dev-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app", 
     "http://localhost:3000",
@@ -19,10 +20,23 @@ async function startServer() {
 
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith("run.app") || origin.includes("netlify.app")) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const lowerOrigin = origin.toLowerCase();
+      const isAllowed = 
+        allowedOrigins.includes(origin) || 
+        lowerOrigin.includes("comotocarhinos.com.br") || 
+        lowerOrigin.includes("run.app") || 
+        lowerOrigin.includes("netlify.app") ||
+        lowerOrigin.includes("localhost:");
+        
+      if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        console.warn(`[CORS] Rejected origin: ${origin}`);
+        callback(new Error(`Not allowed by CORS: ${origin}`));
       }
     },
     methods: ["GET", "POST", "OPTIONS"],
