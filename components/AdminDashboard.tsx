@@ -366,6 +366,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   Novo Aluno
                 </Button>
               </div>
+
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-3xl space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">💡</span>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">Como cadastrar e redefinir login do aluno?</h4>
+                </div>
+                <div className="text-[11px] text-amber-800 font-bold space-y-2 leading-relaxed">
+                  <p>
+                    1. <strong>Sempre use o botão "Novo Aluno" acima</strong> para cadastrar novos alunos. Ele cria a conta de login (Auth) automática com a senha definida e vincula o perfil do aluno no banco de dados.
+                  </p>
+                  <p>
+                    2. <strong>Criou direto pelo Supabase?</strong> Se você inseriu uma linha diretamente na tabela <code>profiles</code> no editor do Supabase, o aluno não terá acesso porque ele <strong>não possui credenciais de login (Auth) criadas</strong>. Recomendamos excluir esse aluno e cadastrá-lo novamente pelo botão <strong>"Novo Aluno"</strong> acima.
+                  </p>
+                  <p>
+                    3. <strong>Esqueceu ou quer mudar a senha de um aluno?</strong> Clique em <strong>"Ficha Aluno"</strong> no card dele abaixo, depois clique em <strong>"Redefinir Senha do Aluno"</strong> e salve. Isso mudará a senha do login dele instantaneamente!
+                  </p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-8">
                 {students.filter(s => s.role === 'STUDENT').map(s => {
                 const info = getStudentCycleInfo(s.id);

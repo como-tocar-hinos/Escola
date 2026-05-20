@@ -7,6 +7,14 @@ import StudentDashboard from './components/StudentDashboard';
 import Login from './components/Login';
 import { supabase, isSupabaseConfigured } from './services/supabase';
 
+const getApiBaseUrl = (): string => {
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname.includes('run.app')) {
+    return '';
+  }
+  return 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -397,9 +405,7 @@ const App: React.FC = () => {
           onAddStudent={async (s, password) => { 
             try {
               console.log("Iniciando criação de aluno via API...");
-              const apiBaseUrl = window.location.hostname === 'localhost' 
-                ? '' 
-                : 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+              const apiBaseUrl = getApiBaseUrl();
               
               const response = await fetch(`${apiBaseUrl}/api/admin/create-user`, {
                 method: 'POST',
@@ -560,7 +566,7 @@ const App: React.FC = () => {
             console.log("Tentando excluir aluno (Auth + DB) ID:", id);
             try {
               setIsSyncing(true);
-              const apiBaseUrl = window.location.hostname === 'localhost' ? '' : 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+              const apiBaseUrl = getApiBaseUrl();
               
               const response = await fetch(`${apiBaseUrl}/api/admin/delete-user`, {
                 method: 'POST',
@@ -586,7 +592,7 @@ const App: React.FC = () => {
           onResetPassword={async (id, newPassword) => {
             try {
               setIsSyncing(true);
-              const apiBaseUrl = window.location.hostname === 'localhost' ? '' : 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+              const apiBaseUrl = getApiBaseUrl();
               
               const response = await fetch(`${apiBaseUrl}/api/admin/reset-password`, {
                 method: 'POST',
