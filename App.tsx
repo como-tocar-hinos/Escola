@@ -34,6 +34,40 @@ const getApiBaseUrl = (): string => {
   return '';
 };
 
+// Função auxiliar e robusta para fetch na API com fallback instantâneo de rede
+const apiFetch = async (path: string, options: RequestInit = {}): Promise<Response> => {
+  const hostname = window.location.hostname;
+  
+  // No localhost ou no próprio preview do AI Studio (run.app), usamos o caminho relativo sem intermediários
+  if (hostname === 'localhost' || hostname.includes('run.app')) {
+    return fetch(path, options);
+  }
+
+  // Em produção (Netlify ou domínio próprio comotocarhinos.com.br):
+  // 1. Primeiro tenta o proxy relativo do Netlify (ex: /api/admin/create-user)
+  const proxyUrl = path;
+  const absoluteUrl = `https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app${path}`;
+
+  try {
+    console.log(`[apiFetch] Tentando via proxy relativo: ${proxyUrl}`);
+    const response = await fetch(proxyUrl, options);
+    
+    // Se o Netlify responder com HTML em vez do pretendido (geralmente redirecionamento de erro ou rota SPA 404),
+    // fomos pegos por um proxy desconfigurado ou inativo na CDN do Netlify.
+    const contentType = response.headers.get("content-type");
+    if (!response.ok && contentType && contentType.includes("text/html")) {
+      console.warn(`[apiFetch] O proxy retornou HTML inesperado. Fazendo bypass para URL absoluta do Cloud Run...`);
+      return fetch(absoluteUrl, options);
+    }
+    return response;
+  } catch (err: any) {
+    console.error(`[apiFetch] Erro de rede (ex: Load failed) no proxy relativo: ${err.message || err}. Tentando URL absoluta diretamente...`);
+    // Se estourar erro de rede (tipo 'Load failed', falha de CORS ou bloqueios por DNS),
+    // fazemos bypass do proxy do Netlify e falamos diretamente com o Cloud Run.
+    return fetch(absoluteUrl, options);
+  }
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -424,9 +458,8 @@ const App: React.FC = () => {
           onAddStudent={async (s, password) => { 
             try {
               console.log("Iniciando criação de aluno via API...");
-              const apiBaseUrl = getApiBaseUrl();
               
-              const response = await fetch(`${apiBaseUrl}/api/admin/create-user`, {
+              const response = await apiFetch('/api/admin/create-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -448,7 +481,7 @@ const App: React.FC = () => {
                 const text = await response.text();
                 console.error("Resposta não-JSON recebida:", text);
                 const isNetlify = window.location.hostname.includes('netlify') || window.location.hostname.includes('comotocarhinos.com.br');
-                throw new Error(`O servidor retornou uma resposta inesperada (não-JSON). ${isNetlify ? '\n\nDetectamos que você está usando um domínio customizado. Tentei falar diretamente com o servidor de API, mas ele ainda retornou HTML. Isso pode acontecer se o servidor estiver reiniciando ou se houver um erro de CORS.' : ''}\n\nURL Tentada: ${apiBaseUrl}/api/admin/create-user\n\nResposta: ${text.substring(0, 100)}...`);
+                throw new Error(`O servidor retornou uma resposta inesperada (não-JSON). ${isNetlify ? '\n\nDetectamos que você está usando um domínio customizado. Se a chamada via proxy e conexão direta falharam, o backend pode estar fora do ar.' : ''}\n\nResposta do servidor: ${text.substring(0, 100)}...`);
               }
 
               if (!response.ok) {
@@ -585,9 +618,8 @@ const App: React.FC = () => {
             console.log("Tentando excluir aluno (Auth + DB) ID:", id);
             try {
               setIsSyncing(true);
-              const apiBaseUrl = getApiBaseUrl();
               
-              const response = await fetch(`${apiBaseUrl}/api/admin/delete-user`, {
+              const response = await apiFetch('/api/admin/delete-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: id })
@@ -611,9 +643,8 @@ const App: React.FC = () => {
           onResetPassword={async (id, newPassword) => {
             try {
               setIsSyncing(true);
-              const apiBaseUrl = getApiBaseUrl();
               
-              const response = await fetch(`${apiBaseUrl}/api/admin/reset-password`, {
+              const response = await apiFetch('/api/admin/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: id, newPassword })
