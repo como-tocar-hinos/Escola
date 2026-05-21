@@ -8,11 +8,30 @@ import Login from './components/Login';
 import { supabase, isSupabaseConfigured } from './services/supabase';
 
 const getApiBaseUrl = (): string => {
+  // Permite uma sobreposição via variáveis de ambiente da build do Vite
+  const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) return envUrl;
+
   const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname.includes('run.app')) {
+  
+  // Retornamos '' (caminho relativo) para:
+  // 1. localhost (desenvolvimento local)
+  // 2. domínios run.app (Cloud Run)
+  // 3. domínios do Netlify ou o domínio personalizado comotocarhinos.com.br
+  // Isso força o uso do proxy reverso configurado no netlify.toml,
+  // contornando restrições de CORS e requisições OPTIONS pré-vôo bloqueadas pelo sandbox.
+  if (
+    hostname === 'localhost' || 
+    hostname.includes('run.app') || 
+    hostname.includes('netlify') || 
+    hostname.includes('comotocarhinos.com.br')
+  ) {
     return '';
   }
-  return 'https://ais-pre-rbl2ofvwsttjhlv4aw5fn5-67364419988.us-west2.run.app';
+  
+  // Por segurança, para qualquer outro domínio, também tenta caminhos relativos
+  // pois o proxy de produção serve a app inteira (Fullstack).
+  return '';
 };
 
 const App: React.FC = () => {
