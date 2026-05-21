@@ -6,6 +6,7 @@ import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
 import Login from './components/Login';
 import { supabase, isSupabaseConfigured } from './services/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 const getApiBaseUrl = (): string => {
   // Permite uma sobreposição via variáveis de ambiente da build do Vite
@@ -68,10 +69,79 @@ const apiFetch = async (path: string, options: RequestInit = {}): Promise<Respon
   }
 };
 
+interface AlertModalProps {
+  message: string;
+  title?: string;
+  onClose: () => void;
+}
+
+const AlertModal: React.FC<AlertModalProps> = ({ message, title = 'Notificação', onClose }) => {
+  const isSuccess = message.includes('sucesso') || message.includes('Sucesso') || message.includes('concluído') || message.includes('✅') || message.includes('CRIADA') || message.includes('cadastrado') || message.includes('efetuada');
+  const isError = message.includes('Erro') || message.includes('erro') || message.includes('❌') || message.includes('falhou') || message.includes('bloqueado');
+
+  let displayTitle = title;
+  if (!title || title === 'Notificação' || title === 'Aviso') {
+    if (isSuccess) displayTitle = 'Tudo Certo!';
+    else if (isError) displayTitle = 'Aviso / Atenção';
+    else displayTitle = 'Mensagem da Escola';
+  }
+
+  // Soft emoji strip for clean presentation
+  const cleanMessage = message
+    .replace(/^[✅❌📋📦⚠️]\s*/, '')
+    .trim();
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-[3px] z-[20000] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[2.5rem] max-w-sm w-full shadow-2xl p-6 md:p-8 border border-gray-100 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+        <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${
+          isSuccess ? 'bg-emerald-50 text-emerald-600' :
+          isError ? 'bg-rose-50 text-rose-600' :
+          'bg-amber-50 text-amber-600'
+        }`}>
+          {isSuccess ? (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+          ) : isError ? (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+        </div>
+        
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{displayTitle}</h3>
+        
+        <p className="text-xs text-gray-500 leading-relaxed max-h-[40vh] overflow-y-auto w-full px-2 mb-6 whitespace-pre-wrap text-left custom-scrollbar select-text selection:bg-red-50 selection:text-red-600">
+          {cleanMessage}
+        </p>
+        
+        <button
+          onClick={onClose}
+          className="w-full py-4 px-4 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-colors cursor-pointer active:scale-95 shadow-lg shadow-gray-950/10"
+        >
+          Entendido
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  
+  const [alertConfig, setAlertConfig] = useState<{ message: string; title?: string } | null>(null);
+
+  // Sobrescreve alert do window localmente no escopo do App para não travar no Safari
+  const alert = (message: string, title?: string) => {
+    setAlertConfig({ message, title });
+  };
 
   const [students, setStudents] = useState<User[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -438,7 +508,18 @@ const App: React.FC = () => {
     </div>
   );
 
-  if (!user) return <Login onLogin={handleLogin} onRegister={handleRegister} />;
+  if (!user) return (
+    <>
+      <Login onLogin={handleLogin} onRegister={handleRegister} />
+      {alertConfig && (
+        <AlertModal 
+          message={alertConfig.message} 
+          title={alertConfig.title} 
+          onClose={() => setAlertConfig(null)} 
+        />
+      )}
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -505,8 +586,6 @@ const App: React.FC = () => {
                 try {
                   // Instanciamos uma cópia temporária do Supabase SDK sem persistência de sessão local 
                   // para não causar logout automático e perda do login do administrador atual.
-                  const { createClient } = await import('@supabase/supabase-js');
-                  
                   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://tvjyskpiqzmujwfjhtcg.supabase.co';
                   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_e14ZXbI5JWT3Ay6V7WprVg_y-UgeGq_';
                   
@@ -871,6 +950,13 @@ const App: React.FC = () => {
             if (error) alert("Erro ao atualizar recital: " + error.message);
             await fetchData();
           }}
+        />
+      )}
+      {alertConfig && (
+        <AlertModal 
+          message={alertConfig.message} 
+          title={alertConfig.title} 
+          onClose={() => setAlertConfig(null)} 
         />
       )}
     </div>

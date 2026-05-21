@@ -83,6 +83,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [sentStudents, setSentStudents] = useState<string[]>([]);
   const [scheduleSearchTerm, setScheduleSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Custom modals for password reset & delete student to bypass Safari blocked browser prompt/confirm
+  const [resetPassModalState, setResetPassModalState] = useState<{ studentId: string; studentName: string } | null>(null);
+  const [newResetPassword, setNewResetPassword] = useState('');
+  const [deleteConfirmModalState, setDeleteConfirmModalState] = useState<{ studentId: string; studentName: string } | null>(null);
 
   useEffect(() => {
     if (isSendingBroadcast) {
@@ -1083,15 +1088,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="button"
                     variant="outline" 
                     className="w-full py-4 border-slate-200 text-slate-600 hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest"
-                    onClick={async () => {
-                      const newPass = prompt("Digite a nova senha temporária para o aluno (mínimo 6 caracteres):");
-                      if (newPass && newPass.length >= 6) {
-                        setIsSyncing(true);
-                        await onResetPassword(editingStudent.id, newPass);
-                        setIsSyncing(false);
-                      } else if (newPass) {
-                        alert("A senha deve ter pelo menos 6 caracteres.");
-                      }
+                    onClick={() => {
+                      setNewResetPassword('');
+                      setResetPassModalState({ studentId: editingStudent.id, studentName: editingStudent.name });
                     }}
                   >
                     Redefinir Senha do Aluno
@@ -1101,13 +1100,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <Button 
                       type="button" 
                       variant="outline" 
-                      onClick={async () => { 
-                        if(confirm('Excluir aluno permanentemente?')) { 
-                          setIsSyncing(true);
-                          await onDeleteStudent(editingStudent.id); 
-                          setIsSyncing(false);
-                          setEditingStudent(null); 
-                        } 
+                      onClick={() => { 
+                        setDeleteConfirmModalState({ studentId: editingStudent.id, studentName: editingStudent.name });
                       }}
                       className="px-6 border-red-100 text-red-600 hover:bg-red-50"
                     >
@@ -1476,6 +1470,90 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </Card>
           </div>
         )}
+
+        <AnimatePresence>
+          {resetPassModalState && (
+            <div className="fixed inset-0 bg-black/60 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
+              <Card className="bg-white w-full max-w-sm p-6 md:p-8 space-y-4 animate-in zoom-in-95 duration-200 shadow-2xl rounded-[2.5rem]">
+                <div className="text-center">
+                  <h4 className="text-xl font-black uppercase tracking-tight text-gray-900">Nova Senha</h4>
+                  <p className="text-[10px] text-slate-400 mt-1 uppercase font-black tracking-widest">Redefinir para {resetPassModalState.studentName}</p>
+                </div>
+                <div className="space-y-4 pt-2">
+                  <Input 
+                    type="password"
+                    label="Nova Senha Provisória"
+                    value={newResetPassword}
+                    onChange={e => setNewResetPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    autoFocus
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setResetPassModalState(null)}
+                      className="flex-1 py-3 px-4 border-2 border-slate-100 text-slate-400 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={newResetPassword.length < 6}
+                      onClick={async () => {
+                        setIsSyncing(true);
+                        const id = resetPassModalState.studentId;
+                        const tempPass = newResetPassword;
+                        setResetPassModalState(null);
+                        await onResetPassword(id, tempPass);
+                        setIsSyncing(false);
+                      }}
+                      className="flex-1 py-3 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-colors cursor-pointer"
+                    >
+                      Confirmar
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {deleteConfirmModalState && (
+            <div className="fixed inset-0 bg-black/60 z-[6000] flex items-center justify-center p-4 backdrop-blur-sm">
+              <Card className="bg-white w-full max-w-sm p-6 md:p-8 space-y-4 animate-in zoom-in-95 duration-200 shadow-2xl rounded-[2.5rem] text-center">
+                <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-2">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-black uppercase tracking-tight text-gray-900">Excluir Aluno?</h4>
+                  <p className="text-xs text-slate-500 mt-2 select-all selection:bg-red-50 selection:text-red-600">Deseja realmente remover o cadastro de <strong className="font-bold text-slate-700">{deleteConfirmModalState.studentName}</strong>? Esta ação é irreversível.</p>
+                </div>
+                <div className="flex gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmModalState(null)}
+                    className="flex-1 py-3 px-4 border-2 border-slate-100 text-slate-400 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsSyncing(true);
+                      const id = deleteConfirmModalState.studentId;
+                      setDeleteConfirmModalState(null);
+                      await onDeleteStudent(id);
+                      setIsSyncing(false);
+                      setEditingStudent(null);
+                    }}
+                    className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-colors cursor-pointer"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </Card>
+            </div>
+          )}
+        </AnimatePresence>
 
       </main>
     </div>
