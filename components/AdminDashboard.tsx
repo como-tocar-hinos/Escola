@@ -56,6 +56,7 @@ interface AdminDashboardProps {
   recitals: Recital[];
   onAddRecital: (r: Partial<Recital>) => Promise<void>;
   onDeleteRecital: (id: string) => Promise<void>;
+  onUpdateRecital?: (id: string, completed: boolean) => Promise<void>;
 }
 
 type AdminView = 'dashboard' | 'students' | 'courses' | 'schedules' | 'payments' | 'recitais';
@@ -64,7 +65,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   user, onLogout, students, courses, schedules, payments, 
   onAddStudent, onUpdateStudent, onAddSchedule, onUpdateSchedule, onAddCourse, onUpdateCourseContent, onUpdateCourseAccess, onAddPayment, onUpdatePayment,
   onDeleteStudent, onResetPassword, onDeleteSchedule, onDeleteCourse, onDeletePayment,
-  recitals, onAddRecital, onDeleteRecital
+  recitals, onAddRecital, onDeleteRecital, onUpdateRecital
 }) => {
   const [activeView, setActiveView] = useState<AdminView>('dashboard');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -878,9 +879,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <span className="text-xs font-black uppercase">{r.hymnName}</span>
                           </td>
                           <td className="p-6 md:p-8">
-                            <Badge variant={r.completed ? 'success' : 'warning'}>
-                              {r.completed ? 'Concluído' : 'Pendente'}
-                            </Badge>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (onUpdateRecital) {
+                                  setIsSyncing(true);
+                                  await onUpdateRecital(r.id, !r.completed);
+                                  setIsSyncing(false);
+                                }
+                              }}
+                              className="focus:outline-none cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                              title="Clique para alterar o status"
+                            >
+                              <Badge variant={r.completed ? 'success' : 'warning'}>
+                                {r.completed ? 'Concluído' : 'Pendente'}
+                              </Badge>
+                            </button>
                           </td>
                           <td className="p-6 md:p-8 text-center">
                             <Button 
@@ -1327,6 +1341,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   courseId: formData.get('courseId') as string,
                   hymnName: formData.get('hymnName') as string,
                   videoUrl: formData.get('videoUrl') as string,
+                  completed: formData.get('completed') === 'on'
                 };
                 setIsSyncing(true);
                 await onAddRecital(newRecital); 
@@ -1351,6 +1366,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
                 <Input label="Nome do Hino" name="hymnName" required placeholder="Ex: Hino 1 - Com Minha Voz" />
                 <Input label="URL do Vídeo (YouTube/Vimeo)" name="videoUrl" required placeholder="https://..." />
+                
+                <div className="flex items-center gap-3 ml-4 py-2">
+                  <input
+                    type="checkbox"
+                    id="completed"
+                    name="completed"
+                    defaultChecked
+                    className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-slate-900 cursor-pointer accent-slate-900"
+                  />
+                  <label htmlFor="completed" className="text-[10px] font-black uppercase text-slate-500 cursor-pointer select-none tracking-wider">
+                    Marcar como Concluído automaticamente
+                  </label>
+                </div>
+
                 <Button type="submit" className="w-full py-6 mt-4">Adicionar Recital</Button>
               </form>
             </Card>

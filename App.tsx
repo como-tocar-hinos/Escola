@@ -925,7 +925,7 @@ const App: React.FC = () => {
               course_id: r.courseId,
               hymn_name: r.hymnName,
               video_url: r.videoUrl,
-              completed: false
+              completed: r.completed ?? false
             }]);
             if (error) alert("Erro ao adicionar recital: " + error.message);
             await fetchData();
@@ -933,6 +933,11 @@ const App: React.FC = () => {
           onDeleteRecital={async (id) => {
             const { error } = await supabase.from('recitals').delete().eq('id', id);
             if (error) alert("Erro ao excluir recital: " + error.message);
+            await fetchData();
+          }}
+          onUpdateRecital={async (id, completed) => {
+            const { error } = await supabase.from('recitals').update({ completed }).eq('id', id);
+            if (error) alert("Erro ao atualizar recital: " + error.message);
             await fetchData();
           }}
         />
